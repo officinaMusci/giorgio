@@ -1,0 +1,60 @@
+# Fichiers compilés et caches Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Fichiers C extensions
+*.so
+
+# Répertoires de distribution et packaging
+build/
+develop-eggs/
+dist/
+.eggs/
+*.egg-info/
+
+# Cache pip, wheel et logs d'installation
+pip-log.txt
+pip-delete-this-directory.txt
+wheels/
+*.whl
+
+# Rapports de tests et couverture
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+
+# Fichiers liés à la documentation (Sphinx, etc.)
+docs/_build/
+
+# Répertoires d'environnements virtuels
+venv/
+ENV/
+env/
+.venv/
+
+# Fichiers de configuration locaux
+.env
+.env.*
+
+# Paramètres d'IDE/éditeur
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Fichiers système
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Fichier de configuration généré par le projet (contenant potentiellement des secrets)
+config.json
