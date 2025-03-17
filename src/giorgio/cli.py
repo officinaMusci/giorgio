@@ -12,7 +12,6 @@ Provides the following commands:
 import argparse
 import os
 import shutil
-import sys
 from giorgio.giorgio import main as start_gui  # type: ignore
 
 
