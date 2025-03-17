@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='giorgio',
-    version='0.1.1',
+    version='0.2.0',
     description='A lightweight micro-framework for script automation with a GUI.',
     author='Danilo Musci',
     author_email='officina@musci.ch',
