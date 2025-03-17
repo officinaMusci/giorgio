@@ -2,42 +2,60 @@
 """
 Blank Script Template for Giorgio.
 
-This template provides a basic structure for creating new scripts.
-Customize the functions as needed.
+This template provides a basic structure for creating new automation scripts.
+Customize as needed.
 """
 
 from typing import Dict, Any
-
+import os
 
 def get_config_schema() -> Dict[str, Dict[str, Any]]:
     """
-    Return the configuration schema for this script.
-
-    :return: A dict defining parameters, their default values, and labels.
+    Return the main configuration schema for the script.
+    For example, the script requires a folder path.
     """
     return {
-        "description": {
+        "folder": {
             "type": "string",
-            "default": "A blank script template.",
-            "label": "Script Description",
-            "description": "Describe what this script does."
-        },
-        "param1": {
-            "type": "string",
-            "default": "",
-            "label": "Parameter 1",
-            "description": "Enter the value for parameter 1."
+            "default": "./data",
+            "label": "Folder Path"
         }
     }
 
-
-def run(params: Dict[str, Any]) -> None:
+def run(params: Dict[str, Any], app) -> None:
     """
-    Execute the script with provided parameters.
-
-    :param params: Dictionary of parameters.
+    Execute the script using provided parameters.
+    
+    :param params: Main parameters from the configuration.
+    :param app: The GiorgioApp instance, allowing dynamic GUI updates.
     """
-    print("This is a blank script template. Please customize it.")
-    print("Received parameters:")
-    for key, value in params.items():
-        print(f"{key}: {value}")
+    folder = params.get("folder")
+    if not folder or not os.path.isdir(folder):
+        print("Invalid folder path.")
+        return
+
+    print("Processing folder:", folder)
+    
+    # At some point, additional parameters are needed.
+    # The developer creates a configuration dict for the extra parameters.
+    extra_schema = {
+        "file_choice": {
+            "label": "Choose a file from folder",
+            "widget": "listbox",
+            "default": "",
+            "options": sorted(os.listdir(folder))
+        },
+        "comment": {
+            "label": "Enter your comment",
+            "widget": "entry",
+            "default": ""
+        }
+    }
+    
+    # Dynamically append extra fields and wait for user input.
+    extra_params = app.get_additional_params("Dynamic Parameters", extra_schema)
+    
+    # Continue script execution using both main and additional parameters.
+    print("Script running with parameters:")
+    print("Main parameter 'folder':", folder)
+    print("Additional parameters:", extra_params)

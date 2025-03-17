@@ -3,297 +3,183 @@
 Giorgio - A lightweight micro-framework for script automation with a GUI.
 """
 
-import os
-import json
-import importlib.util
 import tkinter as tk
 from tkinter import ttk, messagebox, scrolledtext
-import threading
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 
-CONFIG_FILE = 'config.json'
-SCRIPTS_FOLDER = 'scripts'
+def create_grouped_form(
+    container: tk.Frame,
+    grouped_schema: Dict[str, Dict[str, Any]],
+    options: Dict[str, list] = None
+) -> Dict[str, Dict[str, tk.Widget]]:
+    """
+    Create grouped input fields in the given container based on a grouped schema.
+    
+    :param container: Parent Tkinter frame.
+    :param grouped_schema: Dict where each key is a section name and its value is a dict of field configurations.
+    :param options: Optional dict providing options for fields (e.g. for listbox).
+    :return: Dict mapping section names to a dict of field widgets.
+    """
+    all_widgets: Dict[str, Dict[str, tk.Widget]] = {}
+    for group_name, schema in grouped_schema.items():
+        group_frame = ttk.LabelFrame(container, text=group_name)
+        group_frame.pack(fill=tk.X, expand=True, padx=5, pady=5)
+        widgets: Dict[str, tk.Widget] = {}
+        row = 0
+        for key, config in schema.items():
+            label_text = config.get("label", key)
+            ttk.Label(group_frame, text=label_text).grid(
+                row=row, column=0, sticky="w", padx=5, pady=5
+            )
+            widget_type = config.get("widget", "entry")
+            if widget_type == "entry":
+                entry = ttk.Entry(group_frame)
+                default_value = config.get("default", "")
+                entry.insert(0, str(default_value))
+                entry.grid(row=row, column=1, sticky="ew", padx=5, pady=5)
+                widgets[key] = entry
+            elif widget_type == "listbox":
+                lb = tk.Listbox(group_frame, selectmode=tk.MULTIPLE, height=6)
+                opts = options.get(key) if options and key in options else config.get("options", [])
+                for item in opts:
+                    lb.insert(tk.END, item)
+                lb.grid(row=row, column=1, sticky="ew", padx=5, pady=5)
+                widgets[key] = lb
+            row += 1
+        group_frame.columnconfigure(1, weight=1)
+        all_widgets[group_name] = widgets
+    return all_widgets
 
+def get_grouped_values(
+    widgets_grouped: Dict[str, Dict[str, tk.Widget]]
+) -> Dict[str, Dict[str, Any]]:
+    """
+    Retrieve values from grouped input widgets.
+    
+    :param widgets_grouped: Dict mapping section names to field widgets.
+    :return: Dict mapping section names to user-entered values.
+    """
+    results: Dict[str, Dict[str, Any]] = {}
+    for group, widgets in widgets_grouped.items():
+        group_result = {}
+        for key, widget in widgets.items():
+            if isinstance(widget, tk.Listbox):
+                indices = widget.curselection()
+                group_result[key] = [widget.get(i) for i in indices]
+            else:
+                group_result[key] = widget.get()
+        results[group] = group_result
+    return results
 
-class GiorgioApp:
+class GiorgioApp(tk.Tk):
     """
     Main application class for Giorgio.
     """
-
-    def __init__(self, root: tk.Tk) -> None:
-        """
-        Initialize the Giorgio application.
-
-        :param root: The root Tkinter window.
-        """
-        self.root = root
-        self.root.title("Giorgio - Automation Butler")
-        self.config_data = self.load_config()
-        self.scripts = self.scan_scripts()
-        self.current_script: Optional[str] = None
-        self.script_module: Optional[Any] = None
-        self.param_widgets: Dict[str, tk.Entry] = {}
-        self.create_widgets()
-
-    def load_config(self) -> Dict[str, Any]:
-        """
-        Load the configuration from the CONFIG_FILE.
-
-        :return: A dictionary with configuration data.
-        """
-        if os.path.exists(CONFIG_FILE):
-            try:
-                with open(CONFIG_FILE, 'r') as f:
-                    return json.load(f)
-            except Exception as e:
-                messagebox.showerror("Config Error",
-                                     f"Error loading config file: {e}")
-                return {}
-        return {}
-
-    def save_config(self) -> None:
-        """
-        Save the current configuration data to the CONFIG_FILE.
-        """
-        try:
-            with open(CONFIG_FILE, 'w') as f:
-                json.dump(self.config_data, f, indent=4)
-        except Exception as e:
-            messagebox.showerror("Save Error",
-                                 f"Error saving config file: {e}")
-
-    def scan_scripts(self) -> Dict[str, str]:
-        """
-        Scan the SCRIPTS_FOLDER for available script files.
-
-        :return: A dict mapping script names to their file paths.
-        """
-        scripts = {}
-        if not os.path.exists(SCRIPTS_FOLDER):
-            os.makedirs(SCRIPTS_FOLDER)
-        for file in os.listdir(SCRIPTS_FOLDER):
-            if file.endswith('.py'):
-                script_name = file[:-3]
-                scripts[script_name] = os.path.join(SCRIPTS_FOLDER, file)
-        return scripts
-
-    def create_widgets(self) -> None:
-        """
-        Create the main GUI widgets.
-        """
-        # Create main frames.
-        self.left_frame = ttk.Frame(self.root, width=200)
-        self.left_frame.pack(side=tk.LEFT, fill=tk.Y, padx=5, pady=5)
-
-        self.right_frame = ttk.Frame(self.root)
-        self.right_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True,
-                              padx=5, pady=5)
-
-        # List of available scripts.
-        ttk.Label(self.left_frame, text="Available Scripts:").pack(
-            anchor=tk.W)
-        self.script_listbox = tk.Listbox(self.left_frame)
-        self.script_listbox.pack(fill=tk.BOTH, expand=True)
-        for script in self.scripts:
-            self.script_listbox.insert(tk.END, script)
-        self.script_listbox.bind('<<ListboxSelect>>', self.on_script_select)
-
-        # Frame for script parameters form.
-        self.form_frame = ttk.LabelFrame(self.right_frame,
-                                         text="Script Parameters")
-        self.form_frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
-
-        # Button to run the script.
-        self.run_button = ttk.Button(self.right_frame, text="Run Script",
-                                     command=self.run_script)
-        self.run_button.pack(pady=5)
-
-        # Output display area.
-        self.output_text = scrolledtext.ScrolledText(self.right_frame, height=10)
+    def __init__(self) -> None:
+        super().__init__()
+        self.title("Giorgio - Automation Butler")
+        self.geometry("600x600")
+        self.main_frame = ttk.Frame(self)
+        self.main_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        
+        # Main parameters section
+        self.config_frame = ttk.LabelFrame(self.main_frame, text="Main Parameters")
+        self.config_frame.pack(fill=tk.X, padx=5, pady=5)
+        ttk.Label(self.config_frame, text="Folder:").grid(
+            row=0, column=0, padx=5, pady=5, sticky="w"
+        )
+        self.folder_entry = ttk.Entry(self.config_frame)
+        self.folder_entry.insert(0, "./data")
+        self.folder_entry.grid(row=0, column=1, padx=5, pady=5, sticky="ew")
+        self.config_frame.columnconfigure(1, weight=1)
+        
+        # Additional parameters section (initially empty)
+        self.additional_frame = ttk.LabelFrame(self.main_frame, text="Additional Parameters")
+        self.additional_frame.pack(fill=tk.X, padx=5, pady=5)
+        
+        # Button to run the script (or continue when waiting for additional input)
+        self.run_btn = ttk.Button(self.main_frame, text="Run Script", command=self.on_run)
+        self.run_btn.pack(pady=5)
+        
+        # Output area to display results
+        self.output_text = scrolledtext.ScrolledText(self.main_frame, height=10)
         self.output_text.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+        
+        # Variable for waiting on user input for additional parameters
+        self._continue_var = tk.BooleanVar(value=False)
+        
+        # Dictionary to store additional field groups (by group name)
+        self.additional_widgets: Dict[str, Dict[str, tk.Widget]] = {}
 
-        # Menu for editing configuration and viewing docs.
-        menubar = tk.Menu(self.root)
-        self.root.config(menu=menubar)
-        config_menu = tk.Menu(menubar, tearoff=0)
-        menubar.add_cascade(label="Configuration", menu=config_menu)
-        config_menu.add_command(label="Edit Config", command=self.edit_config)
-        config_menu.add_command(label="Documentation",
-                                command=self.show_documentation)
-
-    def on_script_select(self, event: tk.Event) -> None:
+    def on_run(self) -> None:
         """
-        Event handler when a script is selected from the listbox.
-
-        :param event: Tkinter event.
+        Handler for the Run/Continue button.
+        If the app is waiting for additional input, it releases the wait.
+        Otherwise, it executes the script.
         """
-        selection = event.widget.curselection()
-        if selection:
-            index = selection[0]
-            script_name = event.widget.get(index)
-            self.current_script = script_name
-            self.load_script(script_name)
-            self.build_form()
-
-    def load_script(self, script_name: str) -> None:
-        """
-        Dynamically load the selected script module.
-
-        :param script_name: Name of the script to load.
-        """
-        script_path = self.scripts.get(script_name)
-        if script_path:
-            spec = importlib.util.spec_from_file_location(script_name,
-                                                           script_path)
-            module = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(module)  # type: ignore
-            self.script_module = module
+        if not self._continue_var.get():
+            self._continue_var.set(True)
         else:
-            self.script_module = None
-
-    def build_form(self) -> None:
+            self.execute_script()
+    
+    def get_additional_params(self, group_name: str, schema: Dict[str, Any],
+                              options: Dict[str, list] = None) -> Dict[str, Any]:
         """
-        Build the parameter form dynamically based on the script's
-        configuration schema.
+        Append additional fields in a new group, wait until the user fills them in,
+        and then return the values.
+        
+        :param group_name: Title for the new group.
+        :param schema: Dict describing the fields.
+        :param options: Optional dict for field options.
+        :return: Dict with values from the new group.
         """
-        # Clear the previous form.
-        for widget in self.form_frame.winfo_children():
-            widget.destroy()
-        self.param_widgets = {}
-        schema: Dict[str, Any] = {}
-        if self.script_module and hasattr(self.script_module,
-                                           'get_config_schema'):
-            try:
-                schema = self.script_module.get_config_schema()
-            except Exception as e:
-                messagebox.showerror("Error", f"Error getting schema: {e}")
-        if not schema:
-            ttk.Label(self.form_frame,
-                      text="No parameters required for this script.").pack()
-            return
+        # Append a new group of fields
+        widgets = self.append_dynamic_fields(group_name, schema, options)
+        # Change button label to "Continue" and reset the wait variable
+        self.run_btn.config(text="Continue")
+        self._continue_var.set(False)
+        self.wait_variable(self._continue_var)
+        # Retrieve and return the values from this group
+        group_values = get_grouped_values({group_name: widgets})[group_name]
+        self.run_btn.config(text="Run Script")
+        return group_values
 
-        row = 0
-        # Retrieve stored configuration for this script, if available.
-        stored_config: Dict[str, Any] = self.config_data.get(
-            self.current_script, {})
-
-        for key, props in schema.items():
-            label_text = props.get("label", key)
-            ttk.Label(self.form_frame, text=label_text).grid(
-                row=row, column=0, sticky=tk.W, padx=5, pady=5)
-            entry = ttk.Entry(self.form_frame)
-            default_value = stored_config.get(key, props.get("default", ""))
-            entry.insert(0, str(default_value))
-            entry.grid(row=row, column=1, padx=5, pady=5, sticky=tk.EW)
-            self.param_widgets[key] = entry
-
-            # If a description is provided in the schema, display it as a tooltip.
-            desc = props.get("description", "")
-            if desc:
-                # Simple tooltip implementation: show description on focus.
-                def on_focus_in(event, text=desc):
-                    messagebox.showinfo("Parameter Info", text)
-                entry.bind("<FocusIn>", on_focus_in)
-
-            row += 1
-        self.form_frame.columnconfigure(1, weight=1)
-
-    def run_script(self) -> None:
+    def append_dynamic_fields(self, group_name: str, schema: Dict[str, Any],
+                              options: Dict[str, list] = None) -> Dict[str, tk.Widget]:
         """
-        Collect parameters from the form, update the configuration, and run
-        the selected script in a separate thread.
+        Append additional parameter fields to the additional_frame.
+        
+        :param group_name: Title of the new group.
+        :param schema: Dict describing the fields.
+        :param options: Optional dict providing options.
+        :return: Dict mapping field keys to widgets for this group.
         """
-        if not self.script_module or not hasattr(self.script_module, 'run'):
-            messagebox.showerror("Error",
-                                 "The selected script does not have a 'run' "
-                                 "function.")
-            return
-        params = {key: widget.get() 
-                  for key, widget in self.param_widgets.items()}
-        if self.current_script:
-            self.config_data[self.current_script] = params
-        self.save_config()
-        self.output_text.delete(1.0, tk.END)
-        thread = threading.Thread(target=self.execute_script, args=(params,))
-        thread.start()
+        grouped = {group_name: schema}
+        widgets = create_grouped_form(self.additional_frame, grouped, options=options)
+        self.additional_widgets[group_name] = widgets[group_name]
+        return widgets[group_name]
 
-    def execute_script(self, params: Dict[str, Any]) -> None:
+    def get_all_additional_values(self) -> Dict[str, Dict[str, Any]]:
         """
-        Execute the script's run function with provided parameters and
-        display its output.
-
-        :param params: Dictionary of parameters for the script.
+        Retrieve all additional parameters from all groups.
         """
-        try:
-            import io, sys
-            old_stdout = sys.stdout
-            sys.stdout = io.StringIO()
-            self.script_module.run(params)  # type: ignore
-            output = sys.stdout.getvalue()
-            sys.stdout = old_stdout
-            self.output_text.insert(tk.END, output)
-        except Exception as e:
-            self.output_text.insert(tk.END,
-                                    f"Error executing script: {e}")
+        return get_grouped_values(self.additional_widgets)
 
-    def edit_config(self) -> None:
+    def execute_script(self) -> None:
         """
-        Open a window to allow the user to edit the configuration in JSON
-        format.
+        Execute the script by collecting main and additional parameters,
+        then display the result.
         """
-        top = tk.Toplevel(self.root)
-        top.title("Edit Configuration")
-        text = scrolledtext.ScrolledText(top, width=60, height=20)
-        text.pack(padx=10, pady=10)
-        text.insert(tk.END, json.dumps(self.config_data, indent=4))
+        folder = self.folder_entry.get()
+        all_additional = get_grouped_values(self.additional_widgets)
+        output = f"Main parameter 'folder': {folder}\nAdditional parameters:\n"
+        for group, values in all_additional.items():
+            output += f"Section: {group}\n"
+            for key, value in values.items():
+                output += f"  {key}: {value}\n"
+        self.output_text.delete("1.0", tk.END)
+        self.output_text.insert(tk.END, output)
 
-        def save_and_close() -> None:
-            """
-            Save the edited configuration and close the window.
-            """
-            try:
-                new_config = json.loads(text.get(1.0, tk.END))
-                self.config_data = new_config
-                self.save_config()
-                top.destroy()
-            except Exception as e:
-                messagebox.showerror("Error", f"Invalid JSON: {e}")
-
-        save_btn = ttk.Button(top, text="Save", command=save_and_close)
-        save_btn.pack(pady=5)
-
-    def show_documentation(self) -> None:
-        """
-        Open a window to display the project's README.md.
-        """
-        readme_path = 'README.md'
-        if not os.path.exists(readme_path):
-            messagebox.showinfo("Documentation", "README.md not found.")
-            return
-
-        try:
-            with open(readme_path, 'r', encoding='utf-8') as f:
-                content = f.read()
-        except Exception as e:
-            messagebox.showerror("Error", f"Error loading README.md: {e}")
-            return
-
-        doc_window = tk.Toplevel(self.root)
-        doc_window.title("Documentation")
-        text_area = scrolledtext.ScrolledText(doc_window, width=80, height=25)
-        text_area.pack(padx=10, pady=10)
-        text_area.insert(tk.END, content)
-        text_area.config(state=tk.DISABLED)
-
-
-def main() -> None:
-    """
-    Main function to start the Giorgio application.
-    """
-    root = tk.Tk()
-    app = GiorgioApp(root)
-    root.mainloop()
-
-
-if __name__ == '__main__':
-    main()
+if __name__ == "__main__":
+    app = GiorgioApp()
+    app.mainloop()
