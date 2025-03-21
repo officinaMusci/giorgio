@@ -193,8 +193,6 @@ class GiorgioApp(tk.Tk):
         
         # Now load the script list and update UI if a script is selected.
         self.load_script_list()
-        if self.script_listbox.curselection():
-            self.on_script_selected()
 
     def _set_listbox_focus(self, focused: bool) -> None:
         """
@@ -212,14 +210,15 @@ class GiorgioApp(tk.Tk):
         for script in scripts:
             self.script_listbox.insert(tk.END, script)
         if scripts:
-            self.script_listbox.select_set(0)
+            self.script_listbox.select_set(0)  # Select the first script by default
+            self.on_script_selected()  # Force rendering of main parameters for the default selected script
 
     def on_script_selected(self) -> None:
         """
         Load the schema of the selected script and update the UI for main parameters.
         Does not reload the UI if the selected script is the same as the previous one.
         """
-        if self._disable_script_selection or not self._last_listbox_focus:  # Check if selection is temporarily disabled or if the Listbox does not have focus
+        if self._disable_script_selection:  # Check if selection is temporarily disabled
             return
         selection = self.script_listbox.curselection()
         if not selection:
@@ -237,7 +236,7 @@ class GiorgioApp(tk.Tk):
             script_module = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(script_module)  # type: ignore
             config_schema = script_module.get_config_schema()
-            self.update_main_params_ui(config_schema)
+            self.update_main_params_ui(config_schema)  # Ensure UI is updated even for the first script
         except Exception as e:
             messagebox.showerror("Error", f"Error loading script for UI update: {e}")
 
@@ -319,8 +318,8 @@ class GiorgioApp(tk.Tk):
         self.restore_script_selection()  # Restore selection before executing the script
         self._disable_script_selection = True  # Temporarily disable selection
         try:
-            # Do not clear the console to allow persistence of all messages.
-            # self.output_text.delete("1.0", tk.END)
+            # Clear the console to remove previous messages.
+            self.output_text.delete("1.0", tk.END)
             additional_values = get_grouped_values(self.additional_widgets)
             self.hide_additional_frame()
 
@@ -359,11 +358,6 @@ class GiorgioApp(tk.Tk):
             main_params.update(additional_flat)
             
             script_module.run(main_params, self)
-            
-            output = "Main parameters:\n"
-            for key, value in main_params.items():
-                output += f"  {key}: {value}\n"
-            self.output_text.insert(tk.END, output)
         finally:
             self._disable_script_selection = False  # Re-enable selection
 
