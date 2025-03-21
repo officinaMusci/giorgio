@@ -9,6 +9,9 @@ Customize as needed.
 from typing import Dict, Any
 import os
 
+from giorgio.giorgio import GiorgioApp
+
+
 def get_config_schema() -> Dict[str, Dict[str, Any]]:
     """
     Return the main configuration schema for the script.
@@ -22,7 +25,7 @@ def get_config_schema() -> Dict[str, Dict[str, Any]]:
         }
     }
 
-def run(params: Dict[str, Any], app) -> None:
+def run(params: Dict[str, Any], app: GiorgioApp) -> None:
     """
     Execute the script using provided parameters.
     
@@ -36,7 +39,7 @@ def run(params: Dict[str, Any], app) -> None:
 
     print("Processing folder:", folder)
     
-    # Schéma pour les paramètres additionnels adapté au nouveau format.
+    # Schema for additional parameters adapted to the new format.
     extra_schema = {
         "file_choice": {
             "type": "string",
