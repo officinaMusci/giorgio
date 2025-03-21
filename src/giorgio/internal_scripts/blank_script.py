@@ -36,26 +36,25 @@ def run(params: Dict[str, Any], app) -> None:
 
     print("Processing folder:", folder)
     
-    # At some point, additional parameters are needed.
-    # The developer creates a configuration dict for the extra parameters.
+    # Schéma pour les paramètres additionnels adapté au nouveau format.
     extra_schema = {
         "file_choice": {
-            "label": "Choose a file from folder",
-            "widget": "listbox",
+            "type": "string",
             "default": "",
-            "options": sorted(os.listdir(folder))
+            "label": "Choose a file from folder",
+            "options": sorted(os.listdir(folder)),
+            "multiple": False
         },
         "comment": {
-            "label": "Enter your comment",
-            "widget": "entry",
-            "default": ""
+            "type": "string",
+            "default": "",
+            "label": "Enter your comment"
         }
     }
     
     # Dynamically append extra fields and wait for user input.
-    extra_params = app.get_additional_params("Dynamic Parameters", extra_schema)
+    extra_params = app.get_additional_params("Extra Parameters", extra_schema)
     
-    # Continue script execution using both main and additional parameters.
     print("Script running with parameters:")
     print("Main parameter 'folder':", folder)
     print("Additional parameters:", extra_params)
