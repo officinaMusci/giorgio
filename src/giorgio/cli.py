@@ -2,11 +2,11 @@
 """
 Command Line Interface for Giorgio.
 
-Provides the following commands:
-  - init: Initialize a new Giorgio project.
-  - new-script <script_name>: Generate a new blank script.
-  - start: Launch the Giorgio GUI.
-  - build: Build an installable package of your project.
+Available commands:
+  - init       : Initialize a new Giorgio project.
+  - new-script : Generate a new blank script.
+  - start      : Launch the Giorgio GUI.
+  - build      : Build an installable project package.
 """
 
 import argparse
@@ -17,8 +17,10 @@ from giorgio.giorgio import main as start_gui  # type: ignore
 
 def init_project() -> None:
     """
-    Initialize a new Giorgio project by creating the required files and
-    directories.
+    Initialize a new Giorgio project by creating required directories and files.
+    
+    Creates 'scripts' directory, and configuration files 'config.json' and 'README.md'
+    if they do not already exist.
     """
     if not os.path.exists("scripts"):
         os.makedirs("scripts")
@@ -45,21 +47,23 @@ def init_project() -> None:
 
 def new_script(script_name: str) -> None:
     """
-    Generate a new blank script in the 'scripts' folder using the internal
-    template.
+    Generate a new blank script using the internal template.
+
+    The new script is created in the 'scripts' folder with the provided name.
     
-    :param script_name: The name for the new script.
+    :param script_name: Name for the new script (without extension).
     """
-    target_path = os.path.join("scripts", script_name + ".py")
-    package_dir = os.path.dirname(
-        __file__)  # Directory of this cli.py file.
+    target_path = os.path.join("scripts", f"{script_name}.py")
+    package_dir = os.path.dirname(__file__)
     source_template = os.path.join(package_dir, "internal_scripts", "blank_script.py")
+
     if not os.path.exists(source_template):
         print("Template script not found.")
         return
     if os.path.exists(target_path):
         print(f"Script '{target_path}' already exists.")
         return
+
     shutil.copy(source_template, target_path)
     print(f"New script created at '{target_path}'.")
 
@@ -74,11 +78,12 @@ def start_project() -> None:
 
 def build_project() -> None:
     """
-    Build an installable package of your project.
-    This is a placeholder for build functionality.
+    Build an installable package of the project.
+
+    This function is a placeholder; in a real scenario, it may invoke packaging tools.
     """
     print("Building project... (not yet implemented)")
-    # In a real scenario, you might call PyInstaller or another packaging tool here.
+    # Potentially call packaging tools like PyInstaller here.
 
 
 def main() -> None:
@@ -86,19 +91,17 @@ def main() -> None:
     Parse CLI arguments and execute the corresponding command.
     """
     parser = argparse.ArgumentParser(
-        description="Giorgio CLI - Manage your automation project.")
+        description="Giorgio CLI - Manage your automation project."
+    )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     subparsers.add_parser("init", help="Initialize a new Giorgio project")
 
-    parser_new = subparsers.add_parser("new-script",
-                                        help="Generate a new script")
-    parser_new.add_argument("script_name", type=str,
-                            help="Name of the new script")
+    parser_new = subparsers.add_parser("new-script", help="Generate a new script")
+    parser_new.add_argument("script_name", type=str, help="Name of the new script")
 
     subparsers.add_parser("start", help="Launch the Giorgio GUI")
-    subparsers.add_parser("build",
-                          help="Build an installable package of your project")
+    subparsers.add_parser("build", help="Build an installable package of your project")
 
     args = parser.parse_args()
 
