@@ -19,21 +19,12 @@ permissions:
 jobs:
   test-and-publish:
     name: Test & Publish to PyPI
+    runs-on: ubuntu-latest
     environment: pypi
 
     strategy:
       matrix:
-        include:
-          - os: ubuntu-22.04
-            python-version: "3.7"
-          - os: ubuntu-latest
-            python-version: "3.8"
-          - os: ubuntu-latest
-            python-version: "3.9"
-          - os: ubuntu-latest
-            python-version: "3.10"
-
-    runs-on: ${{ matrix.os }}
+        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
 
     steps:
       - name: Checkout code
@@ -67,4 +58,5 @@ jobs:
         run: python -m build --sdist --wheel
 
       - name: Publish to PyPI
+        if: matrix.python-version == "3.12"
         uses: pypa/gh-action-pypi-publish@release/v1
