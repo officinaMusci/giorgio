@@ -24,7 +24,7 @@ setuptools.setup(
     url='https://github.com/officinaMusci/giorgio',
     packages=setuptools.find_packages(exclude=("tests",)),
     include_package_data=True,
-    python_requires=">=3.7",
+    python_requires=">=3.8",
     install_requires=[
         "typer>=0.9.0",
         "questionary>=1.10.0",
@@ -41,7 +41,7 @@ setuptools.setup(
        'Bug Tracker': 'https://github.com/officinaMusci/giorgio/issues'
     },
     classifiers=[
-        "Programming Language :: Python :: 3.7",
+        "Programming Language :: Python :: 3.8",
         "Operating System :: OS Independent",
         "License :: OSI Approved :: MIT License"
     ]
