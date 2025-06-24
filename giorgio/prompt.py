@@ -1,4 +1,6 @@
 from typing import Dict, Any, List, Callable, Union, Optional
+from pathlib import Path
+
 import questionary
 from questionary import Choice, Validator, ValidationError
 
@@ -177,6 +179,68 @@ def _prompt_choices(
         return answer
 
 
+def _prompt_path(
+    message: str,
+    default: Optional[Path],
+    required: bool = False,
+    validator_func: Optional[Callable[[Path], Union[bool, str]]] = None
+) -> Path:
+    """
+    Prompt for a file or directory path using questionary.path.
+
+    :param message: The message to display in the prompt.
+    :type message: str
+    :param default: The default path to use if the user does not provide input.
+    :type default: Optional[Path]
+    :param required: Whether the input is required.
+    :type required: bool
+    :param validator_func: An optional custom validator function that takes the
+    input value and returns True if valid, False or a string error message if
+    invalid.
+    :type validator_func: Optional[Callable[[Path], Union[bool, str]]]
+    :return: The validated Path object.
+    :rtype: Path
+    """
+    
+    def path_validator(text: str) -> Union[bool, str]:
+        """
+        Validate the input text as a file or directory path.
+
+        :param text: The input text to validate.
+        :type text: str
+        :return: True if valid, False or a string error message if invalid.
+        :rtype: Union[bool, str]
+        """
+        if text == "":
+            if required and default is None:
+                return "This field is required."
+            return True
+        
+        path = Path(text)
+        
+        if validator_func:
+            valid = validator_func(path)
+            if valid is False:
+                return "Validation failed."
+            if isinstance(valid, str):
+                return valid
+        
+        return True
+
+    validator = _CustomValidator(path_validator)
+
+    answer = questionary.path(
+        message=message,
+        default=str(default) if default else "",
+        validate=validator
+    ).ask()
+
+    if answer == "":
+        return default
+    
+    return Path(answer)
+
+
 def _prompt_text(
     message: str,
     default: str,
@@ -312,6 +376,11 @@ def prompt_for_params(
             value = _prompt_choices(
                 key, message, choices, default,
                 multiple, validator_func, required
+            )
+
+        elif param_type is Path:
+            value = _prompt_path(
+                message, default, required, validator_func
             )
 
         else:
