@@ -20,16 +20,17 @@
     </a>
 </p>
 
-Giorgio is a lightweight, extensible Python micro-framework designed to scaffold, execute, and manage automation scripts. Whether you prefer interactive CLI prompts or fully non-interactive execution, Giorgio provides a consistent developer experience with minimal boilerplate.
+Giorgio is a lightweight, extensible Python micro-framework designed to scaffold, execute, and manage automation scripts. It offers both interactive and automated modes, supports dynamic parameter prompts, and features pluggable UI renderers for a customizable experience—all with minimal setup and boilerplate.
 
 ## Features
 
 - **Instant project scaffolding** with a best-practice directory layout.
 - **Script generator** for rapid creation of parameterized automation scripts.
-- **Flexible execution modes**: interactive CLI prompts or fully automated runs.
-- **Type-safe parameter system** supporting custom types and validation.
+- **Flexible execution modes**: interactive CLI with dynamic prompts and live output, or fully automated runs.
+- **Type-safe parameter system** supporting custom types, validation, and runtime parameter requests.
 - **Seamless environment variable support** for dynamic configuration.
 - **Composable automation**: easily invoke scripts from within other scripts.
+- **Pluggable UI renderers** for customizing the interactive experience.
 - **Minimal setup, maximum extensibility**—configure only what you need.
 
 ## Installation
@@ -223,13 +224,23 @@ All required parameters must be provided when running scripts non-interactively.
 
 #### Interactive (exploratory):
 
-For an interactive experience, simply start Giorgio in interactive mode:
+For an interactive experience, start Giorgio in interactive mode:
 
 ```bash
-giorgio start
+giorgio start [--ui RENDERER]
 ```
 
-When running in interactive mode, Giorgio presents a menu of available scripts and guides you through each required parameter, providing validation, default values, and helpful descriptions along the way. Output from your script is streamed live to your terminal, allowing you to monitor progress in real time. If you need to stop execution, simply press Ctrl+C to safely abort the process.
+When running in interactive mode, Giorgio presents a menu of available scripts and guides you through each required parameter, providing validation, default values, and helpful descriptions. Output from your script is streamed live to your terminal, and you can safely abort execution with Ctrl+C.
+
+Giorgio supports **pluggable UI renderers** for interactive mode. By default, the CLI renderer is used, but you can specify another renderer with the `--ui` option if additional renderers are installed. To see available renderers, run:
+
+```bash
+giorgio start --help
+```
+
+To add new UI renderers (such as a GUI or web interface), install a compatible plugin that registers itself under the `giorgio.ui_renderers` entry point. Once installed, the new renderer will be available for selection via the `--ui` flag.
+
+This extensibility allows you to tailor the interactive experience to your workflow, whether you prefer a classic terminal UI or a custom interface.
 
 ## Contributing
 

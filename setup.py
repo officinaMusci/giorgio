@@ -33,6 +33,9 @@ setuptools.setup(
     entry_points={
         "console_scripts": [
             "giorgio=giorgio.cli:app",
+        ],
+        "giorgio.ui_renderers": [
+            "cli = giorgio.ui_cli:CLIUIRenderer"
         ]
     },
     keywords='automation, cli, gui, scripts, micro-framework',

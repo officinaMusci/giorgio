@@ -8,6 +8,9 @@ import questionary
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from giorgio.cli import app
+import pytest
+from typer.testing import CliRunner
+from giorgio.cli import _parse_params, _discover_ui_renderers
 
 runner = CliRunner()
 
@@ -107,3 +110,57 @@ def test_cli_start(tmp_path, monkeypatch):
     result = runner.invoke(app, ["start"])
     assert result.exit_code == 0
     assert "ok" in result.stdout
+
+
+def test_parse_params_valid():
+    params = ["foo=1", "bar=hello", "baz=3.14"]
+    result = _parse_params(params)
+    assert result == {"foo": "1", "bar": "hello", "baz": "3.14"}
+
+
+def test_parse_params_empty():
+    result = _parse_params([])
+    assert result == {}
+
+
+def test_parse_params_invalid_format():
+    with pytest.raises(Exception):
+        _parse_params(["foo", "bar=2"])
+
+
+def test_discover_ui_renderers_returns_dict(monkeypatch):
+    class DummyEP:
+        def __init__(self, name):
+            self.name = name
+        def load(self):
+            return str
+
+    def fake_entry_points(group=None):
+        if group == "giorgio.ui_renderers":
+            return [DummyEP("dummy")]
+        return []
+
+    monkeypatch.setattr("giorgio.cli.entry_points", fake_entry_points)
+    renderers = _discover_ui_renderers()
+    assert isinstance(renderers, dict)
+    assert "dummy" in renderers
+    assert renderers["dummy"] is str
+
+
+def test_discover_ui_renderers_handles_load_error(monkeypatch, capsys):
+    class DummyEP:
+        def __init__(self, name):
+            self.name = name
+        def load(self):
+            raise RuntimeError("fail")
+
+    def fake_entry_points(group=None):
+        if group == "giorgio.ui_renderers":
+            return [DummyEP("bad")]
+        return []
+
+    monkeypatch.setattr("giorgio.cli.entry_points", fake_entry_points)
+    renderers = _discover_ui_renderers()
+    assert "bad" not in renderers
+    captured = capsys.readouterr()
+    assert "Warning: could not load UI plugin" in captured.out
