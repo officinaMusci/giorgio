@@ -36,14 +36,14 @@ def _parse_params(param_list: List[str]) -> Dict[str, Any]:
     return params
 
 
-def _discover_ui_renderers() -> dict[str, type]:
+def _discover_ui_renderers() -> Dict[str, type]:
     """
     Discover all registered UIRenderer plugins under the
     'giorgio.ui_renderers' entry point group.
     Returns a mapping {name: RendererClass}.
 
     :returns: Dictionary mapping renderer names to their classes.
-    :rtype: dict[str, type]
+    :rtype: Dict[str, type]
     """
     
     try:
@@ -55,7 +55,7 @@ def _discover_ui_renderers() -> dict[str, type]:
         eps_all = entry_points()
         eps = eps_all.get("giorgio.ui_renderers", [])
     
-    renderers: dict[str, type] = {}
+    renderers: Dict[str, type] = {}
     
     for ep in eps:
         try:
