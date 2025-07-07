@@ -294,13 +294,19 @@ class ExecutionEngine:
         if not hasattr(module, "run") or not callable(module.run):
             raise AttributeError(f"Script '{script}' must define run(context).")
 
-        prev_handler = signal.signal(signal.SIGINT, self._signal_handler)
-
+        prev_handler = None
+        if sys.platform != "win32":
+            prev_handler = signal.signal(signal.SIGINT, self._signal_handler)
+        
         try:
             module.run(context)
         
         except GiorgioCancellationError:
-            print("Script execution cancelled.")
+            print("Script execution cancelled.", flush=True)
+        
+        except KeyboardInterrupt:
+            print("Script execution cancelled (KeyboardInterrupt).", flush=True)
         
         finally:
-            signal.signal(signal.SIGINT, prev_handler)
+            if prev_handler and sys.platform != "win32":
+                signal.signal(signal.SIGINT, prev_handler)
