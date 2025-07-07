@@ -23,7 +23,7 @@ jobs:
 
     strategy:
       matrix:
-        python-version: ['3.8', '3.9', '3.10', '3.11', '3.12', '3.13']
+        python-version: ['3.8', '3.9', '3.10', '3.11', '3.12']
         platform: [ubuntu-latest, macos-latest, windows-latest]
 
     runs-on: ${{ matrix.platform }}
@@ -60,5 +60,5 @@ jobs:
         run: python -m build --sdist --wheel
 
       - name: Publish to PyPI
-        if: matrix.python-version == '3.13' && matrix.platform == 'ubuntu-latest'
+        if: matrix.python-version == '3.12' && matrix.platform == 'ubuntu-latest'
         uses: pypa/gh-action-pypi-publish@release/v1
