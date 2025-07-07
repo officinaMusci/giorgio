@@ -14,17 +14,19 @@ concurrency:
 
 permissions:
   contents: read
-  id-token: write   # required for PyPI Trusted Publishing
+  id-token: write # required for PyPI Trusted Publishing
 
 jobs:
   test-and-publish:
     name: Test & Publish to PyPI
-    runs-on: ubuntu-latest
     environment: pypi
 
     strategy:
       matrix:
-        python-version: ['3.8', '3.9', '3.10', '3.11', '3.12']
+        python-version: ['3.8', '3.9', '3.10', '3.11', '3.12', '3.13']
+        platform: [ubuntu-latest, macos-latest, windows-latest]
+
+    runs-on: ${{ matrix.platform }}
 
     steps:
       - name: Checkout code
@@ -58,5 +60,5 @@ jobs:
         run: python -m build --sdist --wheel
 
       - name: Publish to PyPI
-        if: matrix.python-version == '3.12'
+        if: matrix.python-version == '3.13'
         uses: pypa/gh-action-pypi-publish@release/v1
