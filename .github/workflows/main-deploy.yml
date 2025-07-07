@@ -60,5 +60,5 @@ jobs:
         run: python -m build --sdist --wheel
 
       - name: Publish to PyPI
-        if: matrix.python-version == '3.13'
+        if: matrix.python-version == '3.13' && matrix.platform == 'ubuntu-latest'
         uses: pypa/gh-action-pypi-publish@release/v1
