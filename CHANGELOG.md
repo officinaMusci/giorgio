@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.5] - 2025-07-08
+
+### Added
+- UI plugin discovery.
+- Path prompt support.
+- Usage information for scripts.
+- PEP 621 (`pyproject.toml`) packaging.
+
+### Fixed
+- UI issues in `giorgio start`.
+- Behavior of additional parameters.
+
+### Changed
+- Workflow model replaced with trunk-based CI, Commitizen integration, and updated README.
+- Removal of hard-coded `__init__.py` version file.
+- Code optimizations and readability improvements.
+
 ## [1.0.0] - 2025-06-19
 
 ### Added
