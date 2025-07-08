@@ -1,3 +1,4 @@
+# .github/workflows/bump.yml
 name: Version bump
 
 on:
@@ -10,16 +11,14 @@ permissions:
 
 jobs:
   bump:
-    if: >
-      github.event.workflow_run.conclusion == 'success' &&
-      github.event.workflow_run.head_branch == 'main' &&
-      !startsWith(github.event.workflow_run.head_commit.message, 'bump:')
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
 
     steps:
-      - name: Check out code
+      - name: Checkout code
         uses: actions/checkout@v4
         with:
+          token: ${{ secrets.GITHUB_TOKEN }}
           fetch-depth: 0
 
       - name: Setup Python
@@ -32,11 +31,11 @@ jobs:
           python -m pip install --upgrade pip
           pip install commitizen
 
-      - name: Bump version & generate changelog
+      - id: cz
+        name: Bump version & generate changelog
         uses: commitizen-tools/commitizen-action@master
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Push version tag and changelog
-        run: |
-          git push origin main --follow-tags
+        run: git push origin main --follow-tags
