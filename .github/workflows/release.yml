@@ -5,6 +5,10 @@ on:
     workflows: ["CI"]
     types: [completed]
 
+permissions:
+  contents: read
+  id-token: write # Required for PyPI Trusted Publishing
+
 jobs:
   release:
     if: >
