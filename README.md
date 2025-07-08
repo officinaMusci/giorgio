@@ -9,8 +9,8 @@
         <img alt="Python Version" src="https://img.shields.io/badge/python-3.8%2B-blue.svg"/>
     </a>
     <br>
-    <a href="https://github.com/officinaMusci/giorgio/actions/workflows/main-deploy.yml">
-        <img alt="Build Status" src="https://github.com/officinaMusci/giorgio/actions/workflows/main-deploy.yml/badge.svg"/>
+    <a href="https://github.com/officinaMusci/giorgio/actions/workflows/release.yml">
+        <img alt="Build Status" src="https://github.com/officinaMusci/giorgio/actions/workflows/release.yml/badge.svg"/>
     </a>
     <a href="https://codecov.io/gh/officinaMusci/giorgio">
         <img alt="Codecov Coverage" src="https://codecov.io/gh/officinaMusci/giorgio/branch/main/graph/badge.svg"/>
@@ -39,12 +39,6 @@ Install Giorgio from PyPI:
 
 ```bash
 pip install giorgio
-```
-
-If you want to install the latest development version or contribute:
-
-```bash
-pip install --index-url https://test.pypi.org/simple/ giorgio
 ```
 
 For local development, consider cloning the repository and installing in editable mode:
@@ -244,17 +238,17 @@ This extensibility allows you to tailor the interactive experience to your workf
 
 ## Contributing
 
-Contributions of all kinds—features, bug fixes, documentation, and tests—are welcome. To contribute:
+Community contributions are welcome and encouraged. To maintain a smooth and manageable workflow, please adhere to the following guidelines.
 
-1. **Fork the repository** and create a feature branch from `dev`.
-2. **Ensure clarity and maintainability** by following PEP 8 and using Sphinx-style docstrings.
-3. **Update or add tests** in the `tests/` directory to cover any changes.
-4. **Run tests and check coverage** locally using `pytest` and `coverage`.
-5. **Open a pull request** targeting the `dev` branch, summarizing the changes and referencing relevant issues.
+Development follows a trunk-based workflow using short-lived branches created from `main`. When your changes are complete and stable, open a pull request (PR) targeting `main`. This approach ensures the codebase remains up-to-date and avoids long-lived branches.
 
-All pull requests are reviewed and feedback is provided promptly. When your changes are approved, they will be merged into the `dev` branch. Once a set of features is stable, it will be released to `main`.
+Please write commit messages according to the [Conventional Commits](https://www.conventionalcommits.org/) specification. To make this easier, use the [commitizen](https://commitizen-tools.github.io/commitizen/) tool, which helps you generate properly formatted commit messages. You can run `cz commit` instead of `git commit` to be guided through the process.
 
-Thank you for helping improve Giorgio!
+All pull requests against `main` and any push to `main` trigger the [CI workflow](./.github/workflows/ci.yml), which runs linting, then tests across Python 3.8–3.12 on Linux, macOS and Windows, and enforces the coverage threshold. Once that CI run on `main` completes successfully, the [release workflow](./.github/workflows/release.yml) kicks off to bump the version (with Commitizen), update the changelog, generate and upload the coverage report to Codecov, build the package, and publish it to PyPI.
+
+**Please ensure that every contribution includes appropriate tests.** Adding or updating tests helps maintain code quality and reliability for all users.
+
+Thank you for contributing to Giorgio!
 
 ## License
 

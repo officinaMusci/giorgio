@@ -35,9 +35,17 @@ Homepage = "https://github.com/officinaMusci/giorgio"
 Documentation = "https://github.com/officinaMusci/giorgio#readme"
 Repository = "https://github.com/officinaMusci/giorgio"
 Issues = "https://github.com/officinaMusci/giorgio/issues"
+Changelog = "https://github.com/officinaMusci/giorgio/blob/master/CHANGELOG.md"
 
 [project.scripts]
 giorgio = "giorgio.cli:app"
 
 [project.entry-points."giorgio.ui_renderers"]
 cli = "giorgio.ui_cli:CLIUIRenderer"
+
+[tool.commitizen]
+name = "cz_conventional_commits"
+tag_format = "$version"
+version_scheme = "pep440"
+version_provider = "pep621"
+update_changelog_on_bump = true
