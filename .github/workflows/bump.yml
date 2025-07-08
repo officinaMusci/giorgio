@@ -5,6 +5,9 @@ on:
     workflows: ["CI"]
     types: [completed]
 
+permissions:
+  contents: write
+
 jobs:
   bump:
     if: >
@@ -18,7 +21,6 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -30,8 +32,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install commitizen
 
-      - id: cz
-        name: Bump version & generate changelog
+      - name: Bump version & generate changelog
         uses: commitizen-tools/commitizen-action@master
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
