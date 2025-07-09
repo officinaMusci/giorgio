@@ -244,7 +244,7 @@ Development follows a trunk-based workflow using short-lived branches created fr
 
 Please write commit messages according to the [Conventional Commits](https://www.conventionalcommits.org/) specification. To make this easier, use the [commitizen](https://commitizen-tools.github.io/commitizen/) tool, which helps you generate properly formatted commit messages. You can run `cz commit` instead of `git commit` to be guided through the process.
 
-All pull requests against `main` and any push to `main` trigger the [CI workflow](./.github/workflows/ci.yml), which runs linting, tests across Python 3.8–3.12 on Linux, macOS, and Windows, and enforces the coverage threshold. After a successful CI run on `main`, the [version bump workflow](./.github/workflows/bump.yml) runs to bump the version with Commitizen and update `CHANGELOG.md`, pushing the new `v*` tag. Pushing that tag then triggers the [release workflow](./.github/workflows/release.yml) to run final tests & coverage upload, build the distribution, and publish the package to PyPI.
+All pull requests against `main` trigger the [CI workflow](./.github/workflows/ci.yml), which runs linting, tests across Python 3.8–3.12 on Linux, macOS, and Windows, and enforces the coverage threshold. After a push to the `main` branch, the [version bump workflow](./.github/workflows/bump.yml) runs to bump the version with Commitizen and update `CHANGELOG.md`, pushing the new `v*` tag. Pushing that tag then triggers the [publish workflow](./.github/workflows/publish.yml) to run final tests & coverage upload, build the distribution, and publish the package to PyPI.
 
 **Please ensure that every contribution includes appropriate tests.** Adding or updating tests helps maintain code quality and reliability for all users.
 
