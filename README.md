@@ -8,10 +8,6 @@
     <a href="https://www.python.org/downloads/release/python-380/">
         <img alt="Python Version" src="https://img.shields.io/badge/python-3.8%2B-blue.svg"/>
     </a>
-    <br>
-    <a href="https://github.com/officinaMusci/giorgio/actions/workflows/release.yml">
-        <img alt="Build Status" src="https://github.com/officinaMusci/giorgio/actions/workflows/release.yml/badge.svg"/>
-    </a>
     <a href="https://codecov.io/gh/officinaMusci/giorgio">
         <img alt="Codecov Coverage" src="https://codecov.io/gh/officinaMusci/giorgio/branch/main/graph/badge.svg"/>
     </a>
