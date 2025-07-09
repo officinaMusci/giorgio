@@ -179,6 +179,9 @@ def upgrade_project(root: Path, force: bool = False) -> None:
     except PackageNotFoundError:
         installed_version = "0.0.0"
 
+    print(f"Current project version: {project_version}")
+    print(f"Installed Giorgio version: {installed_version}")
+
     if project_version == installed_version and not force:
         print("Project is already up-to-date.")
         return
@@ -233,8 +236,6 @@ def upgrade_project(root: Path, force: bool = False) -> None:
         confirm = True
     
     else:
-        print(f"Current project version: {project_version}")
-        print(f"Installed Giorgio version: {installed_version}")
         print("Running validation on all scripts...")
         
         if not validate_scripts():
