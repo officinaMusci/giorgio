@@ -1,9 +1,6 @@
 name: CI
 
 on:
-  push:
-    branches:
-      - main
   pull_request:
     branches:
       - main
@@ -42,11 +39,4 @@ jobs:
 
       - name: Run tests & generate coverage report
         run: |
-          pytest --cov=giorgio --cov-branch --cov-report=xml
-
-      - name: Upload coverage report artifact
-        if: ${{ always() }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-${{ matrix.os }}-py${{ matrix.python-version }}
-          path: coverage.xml
+          pytest -v --cov=giorgio --cov-branch --cov-report=term-missing

@@ -1,9 +1,9 @@
 name: Release
 
 on:
-  workflow_run:
-    workflows: ["CI"]
-    types: [completed]
+  push:
+    tags:
+      - "v*"
 
 permissions:
   contents: read
@@ -11,9 +11,6 @@ permissions:
 
 jobs:
   release:
-    if: >
-      github.event.workflow_run.conclusion == 'success' &&
-      github.event.workflow_run.head_branch == 'main'
     runs-on: ubuntu-latest
 
     steps:
@@ -42,7 +39,7 @@ jobs:
           pip install pytest pytest-cov codecov commitizen build twine
 
       - name: Run tests & generate coverage report
-        run: pytest --cov=giorgio --cov-branch --cov-report=xml
+        run: pytest -v --cov=giorgio --cov-branch --cov-report=xml
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
