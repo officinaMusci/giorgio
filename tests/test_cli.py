@@ -9,6 +9,7 @@ import questionary
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from giorgio import cli
 from giorgio.cli import app
 from giorgio.cli import _parse_params, _discover_ui_renderers
 
@@ -97,8 +98,6 @@ def test_cli_start(tmp_path, monkeypatch):
 
 
 def test_run_script_handles_exception(monkeypatch, tmp_path):
-    from giorgio import cli
-
     class DummyEngine:
         def run_script(self, *a, **kw):
             raise RuntimeError("fail run")
@@ -112,30 +111,24 @@ def test_run_script_handles_exception(monkeypatch, tmp_path):
 
 
 def test_start_no_ui_renderers(monkeypatch, tmp_path):
-    from giorgio import cli
-
     monkeypatch.chdir(tmp_path)
     runner.invoke(app, ["init"])
     monkeypatch.setattr(cli, "_discover_ui_renderers", lambda: {})
     result = runner.invoke(app, ["start"])
     assert result.exit_code == 1
-    assert "No UI renderers available." in result.stderr
+    assert "No UI renderers available." in result.output
 
 
 def test_start_unknown_ui_renderer(monkeypatch, tmp_path):
-    from giorgio import cli
-
     monkeypatch.chdir(tmp_path)
     runner.invoke(app, ["init"])
     monkeypatch.setattr(cli, "_discover_ui_renderers", lambda: {"foo": object})
     result = runner.invoke(app, ["start", "--ui", "bar"])
     assert result.exit_code == 1
-    assert "Unknown UI renderer: bar" in result.stderr
+    assert "Unknown UI renderer: bar" in result.output
 
 
 def test_start_no_scripts(monkeypatch, tmp_path):
-    from giorgio import cli
-
     monkeypatch.chdir(tmp_path)
     runner.invoke(app, ["init"])
     class DummyRenderer:
@@ -149,8 +142,6 @@ def test_start_no_scripts(monkeypatch, tmp_path):
 
 
 def test_start_no_script_selected(monkeypatch, tmp_path):
-    from giorgio import cli
-
     monkeypatch.chdir(tmp_path)
     runner.invoke(app, ["init"])
     script_dir = tmp_path / "scripts" / "foo"
@@ -167,8 +158,6 @@ def test_start_no_script_selected(monkeypatch, tmp_path):
 
 
 def test_start_keyboard_interrupt(monkeypatch, tmp_path):
-    from giorgio import cli
-
     monkeypatch.chdir(tmp_path)
     runner.invoke(app, ["init"])
     script_dir = tmp_path / "scripts" / "foo"
@@ -189,8 +178,6 @@ def test_start_keyboard_interrupt(monkeypatch, tmp_path):
 
 
 def test_start_script_execution_error(monkeypatch, tmp_path):
-    from giorgio import cli
-
     monkeypatch.chdir(tmp_path)
     runner.invoke(app, ["init"])
     script_dir = tmp_path / "scripts" / "foo"
@@ -211,8 +198,6 @@ def test_start_script_execution_error(monkeypatch, tmp_path):
 
 
 def test_init_error(monkeypatch, tmp_path):
-    from giorgio import cli
-
     monkeypatch.chdir(tmp_path)
     def fail_init(*a, **k): raise Exception("fail init")
     monkeypatch.setattr(cli, "initialize_project", fail_init)
@@ -222,8 +207,6 @@ def test_init_error(monkeypatch, tmp_path):
 
 
 def test_new_error(monkeypatch, tmp_path):
-    from giorgio import cli
-
     monkeypatch.chdir(tmp_path)
     runner.invoke(app, ["init"])
     def fail_create(*a, **k): raise Exception("fail new")

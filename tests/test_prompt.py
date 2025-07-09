@@ -109,7 +109,7 @@ def test_prompt_path(mock_questionary):
         validator_func=None
     )
     assert isinstance(result, Path)
-    assert str(result) == "/tmp/test.txt"
+    assert result == Path("/tmp/test.txt")
     assert mock_questionary.path_called
 
 def test_prompt_text_str(mock_questionary):
