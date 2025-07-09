@@ -1,4 +1,4 @@
-name: Release
+name: Publish to PyPI
 
 on:
   push:
@@ -17,7 +17,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0 # Fetches the entire history and tags
+          fetch-depth: 0
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -49,17 +49,8 @@ jobs:
           flags: unittests
           name: codecov-umbrella
 
-      - id: bump
-        name: Bump version & generate changelog
-        uses: commitizen-tools/commitizen-action@master
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-        continue-on-error: true # Do not stop the workflow if there are no commits to bump
-
       - name: Build distribution
-        if: steps.bump.outcome == 'success'
         run: python -m build --sdist --wheel
 
       - name: Publish to PyPI
-        if: steps.bump.outcome == 'success'
         uses: pypa/gh-action-pypi-publish@release/v1
