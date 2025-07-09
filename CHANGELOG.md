@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 1.3.0 (2025-07-09)
+
+### Feat
+
+- add version information to upgrade_project function
+
 ## [1.2.5] - 2025-07-08
 
 ### Added
