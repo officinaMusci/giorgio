@@ -39,4 +39,4 @@ jobs:
 
       - name: Run tests & generate coverage report
         run: |
-          pytest -v --cov=giorgio --cov-branch --cov-report=term-missing
+          pytest -v --cov=giorgio --cov-branch --cov-report=term-missing --cov-fail-under=80

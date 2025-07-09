@@ -6,6 +6,7 @@ source = giorgio
 omit =
     tests/*
     setup.py
+    __main__.py
 
 [report]
 exclude_lines =
