@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools"]
+requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -42,6 +42,10 @@ giorgio = "giorgio.cli:app"
 
 [project.entry-points."giorgio.ui_renderers"]
 cli = "giorgio.ui_cli:CLIUIRenderer"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["giorgio*"]
 
 [tool.commitizen]
 name = "cz_conventional_commits"
