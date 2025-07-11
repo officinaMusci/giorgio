@@ -23,7 +23,8 @@ class CLIUIRenderer(UIRenderer):
 
         return script_finder(
             "Select a script to run:",
-            choices=scripts
+            choices=scripts,
+            scripts_dir="scripts"
         ).ask()
 
     def prompt_params(
