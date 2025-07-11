@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## 1.4.0 (2025-07-11)
+
+### Feat
+
+- enhance ScriptFinder to retrieve script names from configuration and improve choice building
+- implement ScriptFinder for interactive script selection and navigation
+
+### Fix
+
+- simplify prompt message formatting in ScriptFinder
+
+## v1.3.1 (2025-07-10)
+
 ## 1.3.1 (2025-07-10)
 
 ### Fix
