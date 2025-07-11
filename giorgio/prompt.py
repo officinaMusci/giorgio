@@ -5,19 +5,195 @@ import questionary
 from questionary import Choice, Validator, ValidationError
 
 
+class _Node:
+    """
+    Represents a node in a hierarchical tree structure, which can be either a
+    directory or a script.
+
+    :param name: The name of the node.
+    :type name: str
+    :param is_script: Indicates whether the node represents a script (True) or a
+    directory (False).
+    :type is_script: bool
+    """
+
+    def __init__(self, name: str, is_script: bool = False) -> None:
+        self.name = name
+        self.is_script = is_script
+        self.children: Dict[str, _Node] = {}
+
+    def add_child(self, child: "_Node") -> None:
+        """
+        Adds a child node to the current node.
+        
+        :param child: The child node to be added. Must be an instance of _Node.
+        :type child: _Node
+        :return: None
+        :rtype: None
+        """
+
+        self.children[child.name] = child
+
+
+class ScriptFinder:
+    """
+    Interactive prompt for navigating and selecting script paths from a list of slash-delimited choices.
+    This class builds a tree structure from the provided choices and allows the user to interactively
+    traverse directories and select scripts using a menu-based interface.
+    
+    :param message: The prompt message displayed to the user.
+    :type message: str
+    :param choices: List of slash-delimited script paths.
+    :type choices: List[str]
+    """
+
+    dir_symbol = "📁"
+    script_symbol = "🐍"
+    back_symbol = "⬅️"
+    choice_separator = "  "
+
+    def __init__(self, message: str, choices: List[str]) -> None:
+        self._message = message
+        self._root = self._build_tree(choices)
+
+    @staticmethod
+    def _build_tree(choices: List[str]) -> _Node:
+        """
+        Builds a tree structure from the provided slash-delimited choices.
+        Each choice is split by slashes to create a hierarchy of directories and
+        scripts.
+
+        :param choices: List of slash-delimited script paths.
+        :type choices: List[str]
+        :return: The root node of the tree structure.
+        :rtype: _Node
+        """
+
+        root = _Node(name="", is_script=False)
+
+        for path in choices:
+            parts = path.strip("/").split("/")
+            current = root
+
+            for index, part in enumerate(parts):
+                is_script = index == len(parts) - 1
+
+                if part not in current.children:
+                    current.children[part] = _Node(name=part, is_script=is_script)
+
+                else:
+                    # If existing node becomes a script
+                    if is_script:
+                        current.children[part].is_script = True
+
+                current = current.children[part]
+
+        return root
+
+    def ask(self) -> Optional[str]:
+        """
+        Displays an interactive menu for the user to select a script path.
+        The user can navigate through directories and select a script. If the
+        user selects a directory, they can navigate deeper into the tree.
+        If the user selects a script, the full path is returned.
+        If the user chooses to go back, they can return to the previous
+        directory.
+
+        :return: The selected script path as a slash-delimited string, or None
+        if the user cancels the selection.
+        :rtype: Optional[str]
+        """
+
+        current = self._root
+        stack: List[_Node] = []
+        path_parts: List[str] = []
+
+        dir_symbol = self.dir_symbol
+        script_symbol = self.script_symbol
+        choice_separator = self.choice_separator
+        back_symbol = self.back_symbol
+        back_choice = f"{back_symbol}{choice_separator}.."
+
+        while True:
+            menu_items: List[str] = []
+
+            if stack:
+                menu_items.append(back_choice)
+
+            dirs = sorted([
+                name
+                for name, node in current.children.items()
+                if not node.is_script
+            ])
+
+            scripts = sorted([
+                name
+                for name, node in current.children.items()
+                if node.is_script
+            ])
+
+            menu_items += [
+                f"{dir_symbol}{choice_separator}{d}"
+                for d in dirs
+            ]
+            
+            menu_items += [
+                f"{script_symbol}{choice_separator}{s}"
+                for s in scripts
+            ]
+
+            prompt = (
+                f"{self._message} "
+                f"(/{'/'.join(path_parts)})"
+            )
+
+            choice = questionary.select(prompt, choices=menu_items).ask()
+            if choice is None:
+                return None
+
+            if choice == back_choice:
+                current = stack.pop()
+                path_parts.pop()
+                continue
+
+            symbol, name = choice.split(choice_separator, 1)
+            
+            if symbol == dir_symbol:
+                stack.append(current)
+                current = current.children[name]
+                path_parts.append(name)
+            
+            elif symbol == script_symbol:
+                path_parts.append(name)
+                return "/".join(path_parts)
+
+
+def script_finder(message: str, choices: List[str]) -> ScriptFinder:
+    """
+    Creates an instance of ScriptFinder to interactively select a script path
+    from a list of slash-delimited choices.
+
+    :param message: The prompt message displayed to the user.
+    :type message: str
+    :param choices: List of slash-delimited script paths.
+    :type choices: List[str]
+    :return: An instance of ScriptFinder.
+    :rtype: ScriptFinder
+    """
+
+    return ScriptFinder(message, choices)
+
+
 class _CustomValidator(Validator):
     """
     Wraps a validator function returning bool or str into questionary.Validator.
+
+    :param func: A callable that takes any input and returns either a boolean or
+    a string.
+    :type func: Callable[[Any], Union[bool, str]]
     """
 
     def __init__(self, func: Callable[[Any], Union[bool, str]]):
-        """
-        Initializes the instance with a callable function.
-
-        :param func: A callable that takes any input and returns either a boolean or a string.
-        :type func: Callable[[Any], Union[bool, str]]
-        """
-        
         self.func = func
 
     def validate(self, document):

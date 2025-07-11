@@ -12,6 +12,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from giorgio import cli
 from giorgio.cli import app
 from giorgio.cli import _parse_params, _discover_ui_renderers
+from giorgio.prompt import ScriptFinder
 
 runner = CliRunner()
 
@@ -87,11 +88,15 @@ def test_cli_start(tmp_path, monkeypatch):
     (script_dir / "script.py").write_text(
         "PARAMS = {}\ndef run(context): print('ok')\n", encoding="utf-8"
     )
-    monkeypatch.setattr(
-        questionary,
-        "select",
-        lambda *args, **kwargs: type("Q", (), {"ask": lambda self: "s"})(),
-    )
+    
+    class DummyQuestion:
+        def ask(self):
+            script_symbol = ScriptFinder.script_symbol
+            choice_separator = ScriptFinder.choice_separator
+
+            return f"{script_symbol}{choice_separator}s"
+    
+    monkeypatch.setattr(questionary, "select", lambda *args, **kwargs: DummyQuestion())
     result = runner.invoke(app, ["start"])
     assert result.exit_code == 0
     assert "ok" in result.stdout
