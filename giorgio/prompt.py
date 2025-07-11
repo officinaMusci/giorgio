@@ -142,10 +142,9 @@ class ScriptFinder:
                 for s in scripts
             ]
 
-            prompt = (
-                f"{self._message} "
-                f"(/{'/'.join(path_parts)})"
-            )
+            prompt = self._message
+            if len(path_parts):
+                prompt += f" ({'/'.join(path_parts)}/)"
 
             choice = questionary.select(prompt, choices=menu_items).ask()
             if choice is None:
