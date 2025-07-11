@@ -13,8 +13,6 @@ All notable changes to this project will be documented in this file.
 
 - simplify prompt message formatting in ScriptFinder
 
-## v1.3.1 (2025-07-10)
-
 ## 1.3.1 (2025-07-10)
 
 ### Fix
@@ -27,26 +25,30 @@ All notable changes to this project will be documented in this file.
 
 - add version information to upgrade_project function
 
-## [1.2.5] - 2025-07-08
+## 1.2.5 (2025-07-08)
 
-### Added
+### Add
+
 - UI plugin discovery.
 - Path prompt support.
 - Usage information for scripts.
 - PEP 621 (`pyproject.toml`) packaging.
 
-### Fixed
+### Fix
+
 - UI issues in `giorgio start`.
 - Behavior of additional parameters.
 
-### Changed
+### Change
+
 - Workflow model replaced with trunk-based CI, Commitizen integration, and updated README.
 - Removal of hard-coded `__init__.py` version file.
 - Code optimizations and readability improvements.
 
-## [1.0.0] - 2025-06-19
+## 1.0.0 (2025-06-19)
 
-### Added
+### Add
+
 - Initial stable release of the Giorgio automation framework.
 - `giorgio init`: Initialize a new project layout with `scripts/`, `modules/`, and `.giorgio/config.json`.
 - `giorgio new <script>`: Scaffold a new script, including `script.py` template and folder structure.
@@ -59,7 +61,8 @@ All notable changes to this project will be documented in this file.
 - Coverage configuration via `.coveragerc`.
 - Packaging with setuptools and Typer CLI integration.
 
-### Fixed
+### Fix
+
 - Parameter type conversion and boolean parsing in non-interactive mode.
 - Environment variable substitution for default parameter values.
 - Preservation of single-responsibility and DRY principles in code modules.
