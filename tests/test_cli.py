@@ -12,6 +12,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from giorgio import cli
 from giorgio.cli import app
 from giorgio.cli import _parse_params, _discover_ui_renderers
+from giorgio.prompt import ScriptFinder
 
 runner = CliRunner()
 
@@ -87,11 +88,18 @@ def test_cli_start(tmp_path, monkeypatch):
     (script_dir / "script.py").write_text(
         "PARAMS = {}\ndef run(context): print('ok')\n", encoding="utf-8"
     )
-    monkeypatch.setattr(
-        questionary,
-        "select",
-        lambda *args, **kwargs: type("Q", (), {"ask": lambda self: "s"})(),
-    )
+    
+    # Patch questionary.select to simulate user selecting the script
+    def fake_select(message, choices, default=None):
+        class DummyQuestion:
+            def ask(inner_self):
+                # Select the script by its title containing "s"
+                for c in choices:
+                    if "s" in c.title:
+                        return c.value
+                return choices[0].value
+        return DummyQuestion()
+    monkeypatch.setattr(questionary, "select", fake_select)
     result = runner.invoke(app, ["start"])
     assert result.exit_code == 0
     assert "ok" in result.stdout

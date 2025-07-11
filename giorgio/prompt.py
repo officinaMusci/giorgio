@@ -1,3 +1,4 @@
+import ast
 from typing import Dict, Any, List, Callable, Union, Optional
 from pathlib import Path
 
@@ -5,19 +6,314 @@ import questionary
 from questionary import Choice, Validator, ValidationError
 
 
+class _Node:
+    """
+    Represents a node in a hierarchical tree structure, which can be either a
+    directory or a script.
+
+    :param name: The name of the node.
+    :type name: str
+    :param is_script: Indicates whether the node represents a script (True) or a
+    directory (False).
+    :type is_script: bool
+    """
+
+    def __init__(self, name: str, is_script: bool = False) -> None:
+        self.name = name
+        self.is_script = is_script
+        self.children: Dict[str, _Node] = {}
+
+    def add_child(self, child: "_Node") -> None:
+        """
+        Adds a child node to the current node.
+        
+        :param child: The child node to be added. Must be an instance of _Node.
+        :type child: _Node
+        :return: None
+        :rtype: None
+        """
+
+        self.children[child.name] = child
+
+
+class ScriptFinder:
+    """
+    Interactive prompt for navigating and selecting script paths from a list of
+    slash-delimited choices.
+    This class builds a tree structure from the provided choices and allows the
+    user to interactively
+    traverse directories and select scripts using a menu-based interface.
+    
+    :param message: The prompt message displayed to the user.
+    :type message: str
+    :param choices: List of slash-delimited script paths.
+    :type choices: List[str]
+    """
+
+    dir_symbol = "📁"
+    script_symbol = "🐍"
+    back_symbol = "⬅️"
+    choice_separator = "  "
+
+    def __init__(
+        self,
+        message: str,
+        choices: List[str],
+        scripts_dir: str = "scripts"
+    ) -> None:
+        self._message = message
+        self._root = self._build_tree(choices)
+        self._scripts_dir = scripts_dir
+
+    @staticmethod
+    def _build_tree(choices: List[str]) -> _Node:
+        """
+        Builds a tree structure from the provided slash-delimited choices.
+        Each choice is split by slashes to create a hierarchy of directories and
+        scripts.
+
+        :param choices: List of slash-delimited script paths.
+        :type choices: List[str]
+        :return: The root node of the tree structure.
+        :rtype: _Node
+        """
+
+        root = _Node(name="", is_script=False)
+
+        for path in choices:
+            parts = path.strip("/").split("/")
+            current = root
+
+            for index, part in enumerate(parts):
+                is_script = index == len(parts) - 1
+
+                if part not in current.children:
+                    current.children[part] = _Node(name=part, is_script=is_script)
+
+                else:
+                    # If existing node becomes a script
+                    if is_script:
+                        current.children[part].is_script = True
+
+                current = current.children[part]
+
+        return root
+
+    @staticmethod
+    def _get_script_name(script_path: str, scripts_dir: str) -> str:
+        """
+        Retrieves the name of a script from its configuration or falls back to
+        the folder name. Uses AST to extract CONFIG["name"] without executing the module.
+        
+        :param script_path: Relative path to the script folder.
+        :type script_path: str
+        :param scripts_dir: Base directory containing script folders.
+        :type scripts_dir: str
+        :return: The name of the script as specified in its configuration, or
+        the folder name if not found.
+        :rtype: str
+        """
+        
+        full_path = Path(scripts_dir) / script_path / "script.py"
+        
+        if not full_path.is_file():
+            return script_path  # fallback
+        
+        try:
+            # Read the file content
+            with open(full_path, "r", encoding="utf-8") as f:
+                file_content = f.read()
+            
+            # Parse the content with AST
+            tree = ast.parse(file_content)
+            
+            # Look for CONFIG assignment and extract CONFIG["name"] if present
+            for node in ast.walk(tree):
+                if (
+                    isinstance(node, ast.Assign)
+                    and any(isinstance(t, ast.Name) and t.id == "CONFIG" for t in node.targets)
+                    and isinstance(node.value, ast.Dict)
+                ):
+                    for key, value in zip(node.value.keys, node.value.values):
+                        if (
+                            isinstance(key, ast.Constant) and key.value == "name"
+                            and isinstance(value, ast.Constant)
+                        ):
+                            return value.value
+            
+        except Exception:
+            # In case of error, use the fallback
+            pass
+        
+        # Fallback: return the parent folder name
+        return script_path
+    
+    def _build_dir_choice(self, name: str) -> Choice:
+        """
+        Creates a Choice object for a directory node.
+
+        :param name: The name of the directory.
+        :type name: str
+        :return: A Choice object representing the directory.
+        :rtype: Choice
+        """
+        
+        name_display = name.replace("_", " ").capitalize()
+        title = f"{self.dir_symbol}{self.choice_separator}{name_display}"
+        value = ("__dir__", name)
+
+        return Choice(title=title, value=value)
+    
+    def _build_script_choice(self, path: str) -> Choice:
+        """
+        Creates a Choice object for a script node.
+
+        :param path: The relative path to the script.
+        :type path: str
+        :return: A Choice object representing the script.
+        :rtype: Choice
+        """
+        
+        title = (
+            f"{self.script_symbol}{self.choice_separator}"
+            f"{self._get_script_name(path, self._scripts_dir)}"
+        )
+        value = path
+
+        return Choice(title=title, value=value)
+
+    def ask(self) -> Optional[str]:
+        """
+        Displays an interactive menu for the user to select a script path.
+        The user can navigate through directories and select a script. If the
+        user selects a directory, they can navigate deeper into the tree.
+        If the user selects a script, the full path is returned.
+        If the user chooses to go back, they can return to the previous
+        directory.
+
+        :return: The selected script path as a slash-delimited string, or None
+        if the user cancels the selection.
+        :rtype: Optional[str]
+        """
+
+        current = self._root
+        stack: List[_Node] = []
+        path_parts: List[str] = []
+
+        dir_symbol = self.dir_symbol
+        script_symbol = self.script_symbol
+        choice_separator = self.choice_separator
+        back_symbol = self.back_symbol
+        back_choice = f"{back_symbol}{choice_separator}.."
+
+        while True:
+            menu_items: List[Any] = []
+
+            if stack:
+                menu_items.append(Choice(title=back_choice, value="__back__"))
+
+            dirs = sorted([
+                name
+                for name, node in current.children.items()
+                if not node.is_script
+            ])
+
+            scripts = sorted([
+                name
+                for name, node in current.children.items()
+                if node.is_script
+            ])
+
+            menu_items += [
+                self._build_dir_choice(d)
+                for d in dirs
+            ]
+            
+            # For each script, build a choice with the full path for value and name lookup
+            # Create full paths for scripts by prepending the current directory path
+            menu_items += [
+                self._build_script_choice_with_path(s, path_parts)
+                for s in scripts
+            ]
+
+            prompt = self._message
+            if len(path_parts):
+                prompt += f" ({'/'.join(path_parts)}/)"
+
+            choice = questionary.select(prompt, choices=menu_items).ask()
+            if choice is None:
+                return None
+
+            if choice == "__back__":
+                current = stack.pop()
+                path_parts.pop()
+                continue
+
+            if isinstance(choice, tuple) and choice[0] == "__dir__":
+                # It's a directory, navigate into it
+                stack.append(current)
+                current = current.children[choice[1]]
+                path_parts.append(choice[1])
+                continue
+
+            # Otherwise, it's a script, return the path
+            return choice
+            
+    def _build_script_choice_with_path(self, script_name: str, path_parts: List[str]) -> Choice:
+        """
+        Creates a Choice object for a script node with the correct full path.
+        
+        :param script_name: The name of the script file/directory.
+        :type script_name: str
+        :param path_parts: The current directory path parts.
+        :type path_parts: List[str]
+        :return: A Choice object representing the script with full path.
+        :rtype: Choice
+        """
+        # Construct the full path by joining the current directory path with the script name
+        full_path = "/".join(path_parts + [script_name]) if path_parts else script_name
+        
+        # Get the user-friendly name using the full path
+        user_name = self._get_script_name(full_path, self._scripts_dir)
+        
+        title = f"{self.script_symbol}{self.choice_separator}{user_name}"
+        
+        # The value must be the full path for proper script execution
+        return Choice(title=title, value=full_path)
+
+def script_finder(
+    message: str,
+    choices: List[str],
+    scripts_dir: str = "scripts"
+) -> ScriptFinder:
+    """
+    Creates an instance of ScriptFinder to interactively select a script path
+    from a list of slash-delimited choices.
+
+    :param message: The prompt message displayed to the user.
+    :type message: str
+    :param choices: List of slash-delimited script paths.
+    :type choices: List[str]
+    :param scripts_dir: The directory where scripts are located, used for
+    resolving script names.
+    :type scripts_dir: str
+    :return: An instance of ScriptFinder.
+    :rtype: ScriptFinder
+    """
+
+    return ScriptFinder(message, choices, scripts_dir)
+
+
 class _CustomValidator(Validator):
     """
     Wraps a validator function returning bool or str into questionary.Validator.
+
+    :param func: A callable that takes any input and returns either a boolean or
+    a string.
+    :type func: Callable[[Any], Union[bool, str]]
     """
 
     def __init__(self, func: Callable[[Any], Union[bool, str]]):
-        """
-        Initializes the instance with a callable function.
-
-        :param func: A callable that takes any input and returns either a boolean or a string.
-        :type func: Callable[[Any], Union[bool, str]]
-        """
-        
         self.func = func
 
     def validate(self, document):

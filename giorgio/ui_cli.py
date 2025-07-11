@@ -3,7 +3,7 @@ import questionary
 from typing import Any, Dict, List
 
 from .ui_renderer import UIRenderer
-from .prompt import prompt_for_params
+from .prompt import script_finder, prompt_for_params
 
 
 class CLIUIRenderer(UIRenderer):
@@ -21,9 +21,10 @@ class CLIUIRenderer(UIRenderer):
         :rtype: str
         """
 
-        return questionary.select(
+        return script_finder(
             "Select a script to run:",
-            choices=scripts
+            choices=scripts,
+            scripts_dir="scripts"
         ).ask()
 
     def prompt_params(
