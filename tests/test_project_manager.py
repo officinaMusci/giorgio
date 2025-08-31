@@ -68,32 +68,23 @@ def test_initialize_project_errors_if_already_exists(temp_project):
         initialize_project(temp_project)
 
 
-def test_create_script_happy_path(temp_project, monkeypatch, tmp_path):
+def test_create_script_happy_path(temp_project):
     # First, initialize the project
     initialize_project(temp_project)
 
-    # Patch template file to a known content in a temp dir
-    template_dir = tmp_path / "templates"
-    template_dir.mkdir(parents=True, exist_ok=True)
-    template_file = template_dir / "script_template.py"
-    template_file.write_text("CONFIG = {'name': '__SCRIPT_PATH__'}", encoding="utf-8")
-    monkeypatch.setattr("giorgio.project_manager.__file__", str(tmp_path / "project_manager.py"))
-    monkeypatch.setattr("giorgio.project_manager.Path", lambda *args, **kwargs: Path(*args, **kwargs) if args and args[0] != "templates" else template_dir)
-
-    # Create a new script at "foo/bar"
-    create_script(temp_project, "foo/bar")
+    # Use an inline template with the placeholder
+    tpl = "CONFIG = {'name': '__SCRIPT_PATH__'}"
+    create_script(temp_project, "foo/bar", template=tpl)
 
     script_folder = temp_project / "scripts" / "foo" / "bar"
     assert script_folder.is_dir(), "Script folder was not created."
 
-    # Check __init__.py at each level: scripts/foo/__init__.py and scripts/foo/bar/__init__.py
     script_file = script_folder / "script.py"
     assert script_file.is_file(), "script.py was not created."
 
-    # Check that the placeholder was replaced (CONFIG name uses path)
     content = script_file.read_text(encoding="utf-8")
     assert "__SCRIPT_PATH__" not in content
-    assert "'foo/bar'" in content or '"foo/bar"' in content, "CONFIG name placeholder not replaced."
+    assert "'foo/bar'" in content, "CONFIG name placeholder not replaced."
 
 
 def test_create_script_errors_if_scripts_dir_missing(temp_project):
@@ -255,20 +246,15 @@ def test_create_script_creates_init_at_each_level(temp_project, tmp_path, monkey
     assert (temp_project / "scripts" / "a" / "b" / "c" / "__init__.py").is_file()
     
     
-def test_create_script_replaces_placeholder(temp_project, monkeypatch, tmp_path):
+def test_create_script_replaces_placeholder(temp_project):
     initialize_project(temp_project)
-    # Patch template file to a known content in a temp dir
-    template_dir = tmp_path / "templates"
-    template_dir.mkdir(parents=True, exist_ok=True)
-    template_file = template_dir / "script_template.py"
-    template_file.write_text("CONFIG = {'name': '__SCRIPT_PATH__'}", encoding="utf-8")
-    monkeypatch.setattr("giorgio.project_manager.__file__", str(tmp_path / "project_manager.py"))
-    monkeypatch.setattr("giorgio.project_manager.Path", lambda *args, **kwargs: Path(*args, **kwargs) if args and args[0] != "templates" else template_dir)
-    create_script(temp_project, "foo/bar")
+
+    # Inline template containing the placeholder
+    tpl = "CONFIG = {'name': '__SCRIPT_PATH__'}\n"
+    create_script(temp_project, "foo/bar", template=tpl)
+
     script_file = temp_project / "scripts" / "foo" / "bar" / "script.py"
     content = script_file.read_text(encoding="utf-8")
-    assert "__SCRIPT_PATH__" not in content
-    assert "'foo/bar'" in content
     assert "__SCRIPT_PATH__" not in content
     assert "'foo/bar'" in content
 
