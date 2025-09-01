@@ -168,7 +168,16 @@ class AIClient(Generic[T]):
         :rtype: AIClient[T]
         """
         tagged = f"Context document [{name}]:\n{content}"
-        self._messages.append(Message(role="system", content=tagged))
+
+        # Find the first system message and append the doc
+        for msg in self._messages:
+            if msg.role == "system":
+                msg.content += f"\n\n{tagged}"
+                break
+        else:
+            # If no system message exists, add as new system message
+            self._messages.append(Message(role="system", content=tagged))
+        
         return self
 
     def with_schema(self, type_hint: Union[Type[T], Any], json_only: bool = True) -> "AIClient[T]":
