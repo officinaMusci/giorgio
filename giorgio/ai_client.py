@@ -2,6 +2,7 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
+import re
 from typing import (
     Any,
     Dict,
@@ -135,18 +136,18 @@ class AIClient(Generic[T]):
         self._messages.append(Message(role="system", content=text))
         return self
 
-    def with_examples(self, pairs: Iterable[Tuple[str, str]]) -> "AIClient[T]":
+    def with_examples(self, examples: Iterable[str]) -> "AIClient[T]":
         """
         Include example user→assistant exchanges to shape formatting.
 
-        :param pairs: List of (user, assistant) example pairs.
-        :type pairs: Iterable[Tuple[str, str]]
+        :param examples: List of example assistant outputs.
+        :type examples: Iterable[str]
         :returns: Self, for method chaining.
         :rtype: AIClient[T]
         """
-        for user_text, assistant_text in pairs:
-            self._messages.append(Message(role="user", content=user_text))
-            self._messages.append(Message(role="assistant", content=assistant_text))
+        for example in examples:
+            self._messages.append(Message(role="user", content="Show me an example"))
+            self._messages.append(Message(role="assistant", content=example))
         return self
 
     def with_doc(
@@ -229,6 +230,25 @@ class AIClient(Generic[T]):
 
         return response.value if self._wrapped_value else response  # type: ignore
 
+    def ask_raw(self, prompt: str) -> str:
+        """
+        Send the prompt to the AI and return raw assistant text (no JSON).
+
+        :param prompt: The user prompt to send.
+        :type prompt: str
+        :returns: The raw assistant response.
+        :rtype: str
+        """
+        self._messages.append(Message(role="user", content=prompt))
+        messages = [{"role": m.role, "content": m.content} for m in self._messages]
+        response = self._raw_client.chat.completions.create(
+            model=self.config.model,
+            messages=messages,
+            temperature=self.config.temperature,
+            timeout=self.config.request_timeout,
+        )
+        return response.choices[0].message.content  # type: ignore
+
     def reset(self) -> None:
         """
         Clear accumulated messages and schema settings for a fresh session.
@@ -239,18 +259,6 @@ class AIClient(Generic[T]):
         self._messages.clear()
         self._response_model = None
         self._wrapped_value = False
-
-    def ask_raw(self, prompt: str) -> str:
-        """Send the prompt to the AI and return raw assistant text (no JSON)."""
-        self._messages.append(Message(role="user", content=prompt))
-        messages = [{"role": m.role, "content": m.content} for m in self._messages]
-        response = self._raw_client.chat.completions.create(
-            model=self.config.model,
-            messages=messages,
-            temperature=self.config.temperature,
-            timeout=self.config.request_timeout,
-        )
-        return response.choices[0].message.content  # type: ignore
 
 
 class AIScriptingClient:
@@ -360,10 +368,8 @@ You have to write a script using the Giorgio library.
             f"""{self.role_description.strip()}\n\n{self.mission_description.strip()}"""
         )
         client.with_doc("README", readme_text)
-        client.with_examples([
-                ("Show me an example Giorgio script.", template_example)
-            ])
-        
+        client.with_examples([template_example])
+
         script = client.ask_raw(instructions)
         script = self._unwrap_script(script)
 
