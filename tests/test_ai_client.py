@@ -93,11 +93,6 @@ def test_reset_clears_state(dummy_config):
     assert client._response_model is None
     assert client._wrapped_value is False
 
-def test_ask_raises_without_schema(dummy_config):
-    client = AIClient(dummy_config)
-    with pytest.raises(ValueError):
-        client.ask("prompt")
-
 def test_ask_calls_instructor_and_returns_value(dummy_config):
     client = AIClient(dummy_config)
     client._response_model = client._wrap_primitive_in_model(str)

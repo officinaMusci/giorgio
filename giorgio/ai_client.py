@@ -127,6 +127,32 @@ class AIClient(Generic[T]):
 
         return wrapped, True
 
+    @property
+    def messages(self) -> List[Dict[str, str]]:
+        """
+        Returns the list of message dicts for the OpenAI API, merging all system
+        messages into one at the beginning.
+        """
+        system_msgs = [m.content for m in self._messages if m.role == "system"]
+        merged_system = None
+        
+        if system_msgs:
+            merged_system = {"role": "system", "content": "\n\n".join(system_msgs)}
+        
+        other_msgs = [
+            {"role": m.role, "content": m.content}
+            for m in self._messages
+            if m.role != "system"
+        ]
+        
+        result = []
+        
+        if merged_system:
+            result.append(merged_system)
+        
+        result.extend(other_msgs)
+        return result
+
     def with_instructions(self, text: str) -> "AIClient[T]":
         """
         Add system instructions guiding the AI’s overall behavior.
@@ -209,32 +235,6 @@ class AIClient(Generic[T]):
 
         return self
 
-    @property
-    def messages(self) -> List[Dict[str, str]]:
-        """
-        Returns the list of message dicts for the OpenAI API, merging all system
-        messages into one at the beginning.
-        """
-        system_msgs = [m.content for m in self._messages if m.role == "system"]
-        merged_system = None
-        
-        if system_msgs:
-            merged_system = {"role": "system", "content": "\n\n".join(system_msgs)}
-        
-        other_msgs = [
-            {"role": m.role, "content": m.content}
-            for m in self._messages
-            if m.role != "system"
-        ]
-        
-        result = []
-        
-        if merged_system:
-            result.append(merged_system)
-        
-        result.extend(other_msgs)
-        return result
-
     def ask(self, prompt: str) -> T:
         """
         Send the prompt to the AI, enforce schema, and return a typed result.
@@ -243,10 +243,9 @@ class AIClient(Generic[T]):
         :type prompt: str
         :returns: The validated and typed response.
         :rtype: T
-        :raises ValueError: If no schema was set prior to calling `ask`.
         """
         if self._response_model is None:
-            raise ValueError("No schema specified. Call `with_schema(...)` before `ask(...)`.")
+            self._response_model, self._wrapped_value = self._wrap_primitive_in_model(str), True
 
         self._messages.append(Message(role="user", content=prompt))
 
@@ -400,7 +399,6 @@ You have to write a script using the Giorgio library.
         client.with_instructions(
             f"""{self.role_description.strip()}\n\n{self.mission_description.strip()}"""
         )
-        client.with_schema(str)
         client.with_doc("Giorgio README", readme_text)
         client.with_examples([template_example])
 
