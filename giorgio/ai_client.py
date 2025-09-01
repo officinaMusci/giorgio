@@ -311,6 +311,21 @@ You have to write a script using the Giorgio library.
         client = cls(api_url, model, api_key)
         return client
 
+    def _unwrap_script(self, response: str) -> str:
+        """
+        Extract the Python script from a possibly wrapped response.
+        If markdown code fences exist, return only the text inside them.
+        Otherwise, return the response as-is.
+        """
+        script = response.strip()
+        code_fence_pattern = r"```(?:python)?\s*([\s\S]*?)\s*```"
+        match = re.search(code_fence_pattern, script, re.IGNORECASE)
+        
+        if match:
+            return match.group(1).strip()
+        
+        return script
+
     def generate_script(self, instructions: str) -> str:
         """
         Generate a Python automation script based on instructions and context.
@@ -332,55 +347,15 @@ You have to write a script using the Giorgio library.
         # Build prompt and fetch raw Python code
         client = self.ai_client
         client.reset()
-        
-        script = (
-            client
-                .with_instructions(
-                    f"""{self.role_description.strip()}\n\n{self.mission_description.strip()}"""
-                )
-                .with_doc("README", readme_text)
-                .with_examples([
-                    ("Show me an example Giorgio script.", template_example)
-                ])
-                .ask_raw(instructions)
+        client.with_instructions(
+            f"""{self.role_description.strip()}\n\n{self.mission_description.strip()}"""
         )
-
-        # Clean up any markdown fences that might have been returned
-        script = self._clean_markdown(script)
-        return script
+        client.with_doc("README", readme_text)
+        client.with_examples([
+                ("Show me an example Giorgio script.", template_example)
+            ])
         
-    def _clean_markdown(self, text: str) -> str:
-        """
-        Remove markdown code blocks, language identifiers, and other formatting.
+        script = client.ask_raw(instructions)
+        script = self._unwrap_script(script)
 
-        :param text: Input text to clean.
-        :type text: str
-        :returns: Cleaned text without markdown formatting.
-        :rtype: str
-        """
-        text = text.strip()
-
-        # Remove triple-quoted blocks
-        if text.startswith('"""') and text.endswith('"""'):
-            text = text[3:-3].strip()
-        elif text.startswith("'''") and text.endswith("'''"):
-            text = text[3:-3].strip()
-
-        # Remove markdown code blocks (``` or ```python)
-        if text.startswith("```"):
-            lines = text.splitlines()
-            # Remove the first line (``` or ```python)
-            if len(lines) > 1 and lines[0].strip().startswith("```"):
-                lines = lines[1:]
-            # Remove the last line if it's ```
-            if lines and lines[-1].strip() == "```":
-                lines = lines[:-1]
-            # Remove a language identifier if present
-            if lines and lines[0].strip().lower() in ("python", "py"):
-                lines = lines[1:]
-            text = "\n".join(lines).strip()
-
-        # Remove any stray backticks or triple quotes
-        text = text.replace("`", "").replace('"""', "").replace("'''", "")
-
-        return text
+        return script
