@@ -209,6 +209,32 @@ class AIClient(Generic[T]):
 
         return self
 
+    @property
+    def messages(self) -> List[Dict[str, str]]:
+        """
+        Returns the list of message dicts for the OpenAI API, merging all system
+        messages into one at the beginning.
+        """
+        system_msgs = [m.content for m in self._messages if m.role == "system"]
+        merged_system = None
+        
+        if system_msgs:
+            merged_system = {"role": "system", "content": "\n\n".join(system_msgs)}
+        
+        other_msgs = [
+            {"role": m.role, "content": m.content}
+            for m in self._messages
+            if m.role != "system"
+        ]
+        
+        result = []
+        
+        if merged_system:
+            result.append(merged_system)
+        
+        result.extend(other_msgs)
+        return result
+
     def ask(self, prompt: str) -> T:
         """
         Send the prompt to the AI, enforce schema, and return a typed result.
@@ -223,12 +249,11 @@ class AIClient(Generic[T]):
             raise ValueError("No schema specified. Call `with_schema(...)` before `ask(...)`.")
 
         self._messages.append(Message(role="user", content=prompt))
-        messages = [{"role": m.role, "content": m.content} for m in self._messages]
 
         # Perform chat completion with schema enforcement and retries
         response = self.client.chat.completions.create(
             model=self.config.model,
-            messages=messages,
+            messages=self.messages,
             temperature=self.config.temperature,
             response_model=self._response_model,
             max_retries=self.config.max_retries,
@@ -246,12 +271,11 @@ class AIClient(Generic[T]):
         :rtype: str
         """
         self._messages.append(Message(role="user", content=prompt))
-        messages = [{"role": m.role, "content": m.content} for m in self._messages]
-
+        
         # Perform chat completion without schema enforcement
         response = self._raw_client.chat.completions.create(
             model=self.config.model,
-            messages=messages,
+            messages=self.messages,
             temperature=self.config.temperature,
             timeout=self.config.request_timeout,
         )
@@ -373,10 +397,10 @@ You have to write a script using the Giorgio library.
         # Build prompt
         client = self.ai_client
         client.reset()
-        client.with_schema(str)
         client.with_instructions(
             f"""{self.role_description.strip()}\n\n{self.mission_description.strip()}"""
         )
+        client.with_schema(str)
         client.with_doc("Giorgio README", readme_text)
         client.with_examples([template_example])
 
