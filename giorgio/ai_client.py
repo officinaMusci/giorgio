@@ -50,10 +50,13 @@ class Message:
 
 
 class AIClient(Generic[T]):
-    """High‐level AI client using Instructor + Pydantic for typed prompts."""
+    """
+    High-level AI client using Instructor + Pydantic for typed prompts.
+    """
     
     def __init__(self, config: ClientConfig) -> None:
-        """Initialize the AIClient with configuration and raw OpenAI client.
+        """
+        Initialize the AIClient with configuration and raw OpenAI client.
 
         :param config: Settings for API key, model, retries, etc.
         :type config: ClientConfig
@@ -84,7 +87,8 @@ class AIClient(Generic[T]):
         self._wrapped_value = False
 
     def _wrap_primitive_in_model(self, py_type: Any) -> Type[BaseModel]:
-        """Build and cache a Pydantic model wrapping a primitive or typing type.
+        """
+        Build and cache a Pydantic model wrapping a primitive or typing type.
 
         :param py_type: A Python builtin or typing hint to wrap.
         :type py_type: Any
@@ -104,7 +108,8 @@ class AIClient(Generic[T]):
 
 
     def _resolve_response_model(self, target: Union[Type[T], Any]) -> Tuple[Type[BaseModel], bool]:
-        """Select or wrap a response type into a Pydantic model for validation.
+        """
+        Select or wrap a response type into a Pydantic model for validation.
 
         :param target: Either a BaseModel subclass or a Python/typing hint.
         :type target: Union[Type[T], Any]
@@ -119,7 +124,8 @@ class AIClient(Generic[T]):
         return wrapped, True
 
     def with_instructions(self, text: str) -> "AIClient[T]":
-        """Add system instructions guiding the AI’s overall behavior.
+        """
+        Add system instructions guiding the AI’s overall behavior.
 
         :param text: Instructional text to prepend as a system message.
         :type text: str
@@ -130,7 +136,8 @@ class AIClient(Generic[T]):
         return self
 
     def with_examples(self, pairs: Iterable[Tuple[str, str]]) -> "AIClient[T]":
-        """Include example user→assistant exchanges to shape formatting.
+        """
+        Include example user→assistant exchanges to shape formatting.
 
         :param pairs: List of (user, assistant) example pairs.
         :type pairs: Iterable[Tuple[str, str]]
@@ -148,7 +155,8 @@ class AIClient(Generic[T]):
         content: str,
         strategy: Literal["full", "summary", "chunk"] = "summary",
     ) -> "AIClient[T]":
-        """Attach a named context document to the prompt.
+        """
+        Attach a named context document to the prompt.
 
         :param name: Identifier for the document (e.g., "README").
         :type name: str
@@ -164,7 +172,8 @@ class AIClient(Generic[T]):
         return self
 
     def with_schema(self, type_hint: Union[Type[T], Any], json_only: bool = True) -> "AIClient[T]":
-        """Define the expected response schema or native type.
+        """
+        Define the expected response schema or native type.
 
         :param type_hint: A BaseModel subclass or typing hint.
         :type type_hint: Union[Type[T], Any]
@@ -185,7 +194,8 @@ class AIClient(Generic[T]):
         return self
 
     def ask(self, prompt: str) -> T:
-        """Send the prompt to the AI, enforce schema, and return a typed result.
+        """
+        Send the prompt to the AI, enforce schema, and return a typed result.
 
         :param prompt: The final user input to append before calling the API.
         :type prompt: str
@@ -211,7 +221,8 @@ class AIClient(Generic[T]):
         return response.value if self._wrapped_value else response  # type: ignore
 
     def reset(self) -> None:
-        """Clear accumulated messages and schema settings for a fresh session.
+        """
+        Clear accumulated messages and schema settings for a fresh session.
 
         :returns: None
         :rtype: None
@@ -234,7 +245,10 @@ class AIClient(Generic[T]):
 
 
 class AIScriptingClient:
-    """Minimal client to generate Python automation scripts based on project context and AI instructions."""
+    """
+    Minimal client to generate Python automation scripts based on project
+    context and AI instructions.
+    """
 
     role_description = """
 You are a seasoned Python developer, attentive to best practices and coding standards—especially PEP 8. Your code (in English only) must be:
@@ -252,7 +266,8 @@ Your mission is to generate a valid Giorgio automation script:
 """
 
     def __init__(self, api_url: str, model: str, api_key: str = None):
-        """Initialize the scripting client with API endpoint, model, and key.
+        """
+        Initialize the scripting client with API endpoint, model, and key.
 
         :param api_url: Base URL of the AI service.
         :type api_url: str
@@ -268,7 +283,8 @@ Your mission is to generate a valid Giorgio automation script:
 
     @classmethod
     def from_project_config(cls, project_root: Path):
-        """Load AI config from .giorgio/config.json and build a client.
+        """
+        Load AI config from .giorgio/config.json and build a client.
 
         :param project_root: Root directory of the project.
         :type project_root: Path
@@ -292,7 +308,14 @@ Your mission is to generate a valid Giorgio automation script:
         return client
 
     def generate_script(self, instructions: str) -> str:
-        """Generate a Python automation script based on instructions and context."""
+        """
+        Generate a Python automation script based on instructions and context.
+
+        :param instructions: User-provided instructions for the script.
+        :type instructions: str
+        :returns: Generated Python script.
+        :rtype: str
+        """
         self.ai_client.reset()
 
         # Load example template and project README
@@ -323,7 +346,14 @@ Your mission is to generate a valid Giorgio automation script:
         return script
         
     def _clean_markdown(self, text: str) -> str:
-        """Remove markdown code blocks, language identifiers, and other formatting."""
+        """
+        Remove markdown code blocks, language identifiers, and other formatting.
+
+        :param text: Input text to clean.
+        :type text: str
+        :returns: Cleaned text without markdown formatting.
+        :rtype: str
+        """
         text = text.strip()
 
         # Remove triple-quoted blocks
