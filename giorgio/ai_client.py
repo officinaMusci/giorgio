@@ -157,7 +157,7 @@ class AIClient(Generic[T]):
         strategy: Literal["full", "summary", "chunk"] = "summary",
     ) -> "AIClient[T]":
         """
-        Attach a named context document to the prompt.
+        Attach a named context document to the prompt as a user–assistant message pair.
 
         :param name: Identifier for the document (e.g., "README").
         :type name: str
@@ -168,17 +168,10 @@ class AIClient(Generic[T]):
         :returns: Self, for method chaining.
         :rtype: AIClient[T]
         """
-        tagged = f"Context document [{name}]:\n{content}"
-
-        # Find the first system message and append the doc
-        for msg in self._messages:
-            if msg.role == "system":
-                msg.content += f"\n\n{tagged}"
-                break
-        else:
-            # If no system message exists, add as new system message
-            self._messages.append(Message(role="system", content=tagged))
-        
+        user_msg = f"Context document [{name}]:\n{content}"
+        assistant_msg = f"Document '{name}' received and understood."
+        self._messages.append(Message(role="user", content=user_msg))
+        self._messages.append(Message(role="assistant", content=assistant_msg))
         return self
 
     def with_schema(self, type_hint: Union[Type[T], Any], json_only: bool = True) -> "AIClient[T]":
