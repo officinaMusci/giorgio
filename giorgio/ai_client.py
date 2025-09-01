@@ -104,7 +104,9 @@ class AIClient(Generic[T]):
             value=(py_type, Field(..., description="Return the result in this field named 'value'")),
             __base__=BaseModel,
         )
+
         _MODEL_CACHE[py_type] = model
+        
         return model
 
 
@@ -122,6 +124,7 @@ class AIClient(Generic[T]):
             return target, False  # already a Pydantic model
 
         wrapped = self._wrap_primitive_in_model(target)
+
         return wrapped, True
 
     def with_instructions(self, text: str) -> "AIClient[T]":
@@ -134,6 +137,7 @@ class AIClient(Generic[T]):
         :rtype: AIClient[T]
         """
         self._messages.append(Message(role="system", content=text))
+
         return self
 
     def with_examples(self, examples: Iterable[str]) -> "AIClient[T]":
@@ -148,6 +152,7 @@ class AIClient(Generic[T]):
         for example in examples:
             self._messages.append(Message(role="user", content="Show me an example"))
             self._messages.append(Message(role="assistant", content=example))
+
         return self
 
     def with_doc(
@@ -170,8 +175,10 @@ class AIClient(Generic[T]):
         """
         user_msg = f"Context document [{name}]:\n{content}"
         assistant_msg = f"Document '{name}' received and understood."
+
         self._messages.append(Message(role="user", content=user_msg))
         self._messages.append(Message(role="assistant", content=assistant_msg))
+
         return self
 
     def with_schema(self, type_hint: Union[Type[T], Any], json_only: bool = True) -> "AIClient[T]":
@@ -193,7 +200,13 @@ class AIClient(Generic[T]):
             if json_only
             else "Your output MUST strictly conform to the expected schema."
         )
-        self._messages.append(Message(role="system", content=f"Output constraint: {fmt}"))
+
+        user_msg = f"Output constraint:\n{fmt}"
+        assistant_msg = "Output constraint received and understood."
+
+        self._messages.append(Message(role="user", content=user_msg))
+        self._messages.append(Message(role="assistant", content=assistant_msg))
+
         return self
 
     def ask(self, prompt: str) -> T:
@@ -234,12 +247,15 @@ class AIClient(Generic[T]):
         """
         self._messages.append(Message(role="user", content=prompt))
         messages = [{"role": m.role, "content": m.content} for m in self._messages]
+
+        # Perform chat completion without schema enforcement
         response = self._raw_client.chat.completions.create(
             model=self.config.model,
             messages=messages,
             temperature=self.config.temperature,
             timeout=self.config.request_timeout,
         )
+
         return response.choices[0].message.content  # type: ignore
 
     def reset(self) -> None:
@@ -296,7 +312,7 @@ You have to write a script using the Giorgio library.
         self.ai_client = AIClient(cfg)
 
     @classmethod
-    def from_project_config(cls, project_root: Path):
+    def from_project_config(cls, project_root: Union[str, Path]):
         """
         Load AI config from .giorgio/config.json and build a client.
 
@@ -354,16 +370,18 @@ You have to write a script using the Giorgio library.
         readme_path = Path(__file__).parent.parent / "README.md"
         readme_text = readme_path.read_text().strip()
 
-        # Build prompt and fetch raw Python code
+        # Build prompt
         client = self.ai_client
         client.reset()
+        client.with_schema(str)
         client.with_instructions(
             f"""{self.role_description.strip()}\n\n{self.mission_description.strip()}"""
         )
-        client.with_doc("README", readme_text)
+        client.with_doc("Giorgio README", readme_text)
         client.with_examples([template_example])
 
-        script = client.ask_raw(instructions)
+        # Ask for the script
+        script = client.ask(instructions)
         script = self._unwrap_script(script)
 
         return script
