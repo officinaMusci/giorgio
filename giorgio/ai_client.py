@@ -167,18 +167,17 @@ class AIClient(Generic[T]):
 
         return self
 
-    def with_examples(self, examples: Iterable[str]) -> "AIClient[T]":
+    def with_example(self, example: str) -> "AIClient[T]":
         """
-        Include example user→assistant exchanges to shape formatting.
+        Include an example user→assistant exchange to shape formatting.
 
-        :param examples: List of example assistant outputs.
-        :type examples: Iterable[str]
+        :param example: An example assistant output.
+        :type example: str
         :returns: Self, for method chaining.
         :rtype: AIClient[T]
         """
-        for example in examples:
-            self._messages.append(Message(role="user", content="Show me an example"))
-            self._messages.append(Message(role="assistant", content=example))
+        self._messages.append(Message(role="user", content="Show me an example"))
+        self._messages.append(Message(role="assistant", content=example))
 
         return self
 
@@ -401,7 +400,7 @@ You have to write a script using the Giorgio library.
         ]
 
         selected = questionary.checkbox(
-            "Select modules to include as context:",
+            "Select modules to include as context documents:",
             choices=choices,
         ).ask() or []
 
@@ -458,7 +457,7 @@ You have to write a script using the Giorgio library.
         ]
 
         selected = questionary.checkbox(
-            "Select example scripts to include as examples:",
+            "Select existing scripts to include as examples:",
             choices=choices,
         ).ask() or []
 
@@ -504,12 +503,6 @@ You have to write a script using the Giorgio library.
         """
         self.ai_client.reset()
 
-        # Get scripts content as exemples and, if no scripts are found, get
-        # template content instead
-        exemples = self._select_scripts()
-        if not exemples:
-            exemples.append(self._get_script_template_content())
-
         # Build prompt
         client = self.ai_client
         client.reset()
@@ -523,8 +516,12 @@ You have to write a script using the Giorgio library.
         for mod_name, mod_content in selected_modules:
             client.with_doc(f"Module: {mod_name}", mod_content)
 
-        # Add examples (existing scripts or template)
-        client.with_examples(exemples)
+        # Add selected scripts as examples (or the template if none)
+        exemples = self._select_scripts()
+        if not exemples:
+            exemples.append(self._get_script_template_content())
+        for exemple in exemples:
+            client.with_example(exemple)
 
         # Ask for the script
         script = client.ask(instructions)
