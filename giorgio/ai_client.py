@@ -373,7 +373,16 @@ You have to write a script using the Giorgio library.
                         rel_path = py_file
 
                     content = py_file.read_text(encoding="utf-8").strip()
-                    python_path = ".".join(rel_path.with_suffix("").parts)
+                    
+                    if py_file.name == "__init__.py":
+                        if not content:
+                            continue  # skip empty __init__.py
+                        # Use parent folder as module path
+                        python_path = ".".join(rel_path.parent.parts)
+                    
+                    else:
+                        python_path = ".".join(rel_path.with_suffix("").parts)
+                    
                     modules.append((python_path, content))
 
         return modules
