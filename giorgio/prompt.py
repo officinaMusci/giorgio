@@ -419,7 +419,7 @@ def _prompt_choices(
         Choice(
             title=str(c),
             value=c,
-            checked=c in default if multiple else None
+            checked=(default is not None and c in default) if multiple else None
         )
         for c in choices
     ]
