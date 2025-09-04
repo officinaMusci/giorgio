@@ -20,6 +20,7 @@ from typing import (
 import instructor
 from openai import OpenAI
 from pydantic import BaseModel, create_model, Field
+import questionary
 
 from .project_manager import get_project_config
 
@@ -377,6 +378,29 @@ You have to write a script using the Giorgio library.
 
         return modules
 
+    def _select_modules(self) -> List[Tuple[str, str]]:
+        """
+        Prompt the user to select modules from a list.
+
+        :returns: List of selected module contents.
+        :rtype: List[Tuple[str, str]]
+        """
+        modules = self._get_modules_content()
+        if not modules:
+            return []
+
+        choices = [
+            questionary.Choice(title=name, value=(name, content))
+            for name, content in modules
+        ]
+
+        selected = questionary.checkbox(
+            "Select modules to include as context:",
+            choices=choices,
+        ).ask() or []
+
+        return selected
+
     def _get_script_template_content(self) -> str:
         """
         Get the content of the script template file.
@@ -399,17 +423,40 @@ You have to write a script using the Giorgio library.
         scripts: List[Tuple[str, str]] = []
 
         if scripts_dir.exists() and scripts_dir.is_dir():
-            for script_file in scripts_dir.rglob("*.py"):
+            for script_file in scripts_dir.rglob("script.py"):
                 try:
                     rel_path = script_file.relative_to(self.project_root)
                 except ValueError:
                     rel_path = script_file
 
                 content = script_file.read_text(encoding="utf-8").strip()
-                script_name = str(rel_path.with_suffix(""))
+                script_name = str(rel_path.parent.with_suffix(""))
                 scripts.append((script_name, content))
 
         return scripts
+
+    def _select_scripts(self) -> List[str]:
+        """
+        Prompt the user to select scripts from a list.
+
+        :returns: List of selected script contents.
+        :rtype: List[str]
+        """
+        scripts = self._get_scripts_content()
+        if not scripts:
+            return []
+
+        choices = [
+            questionary.Choice(title=name, value=content)
+            for name, content in scripts
+        ]
+
+        selected = questionary.checkbox(
+            "Select example scripts to include as examples:",
+            choices=choices,
+        ).ask() or []
+
+        return selected
 
     def _get_readme_content(self) -> str:
         """
@@ -451,9 +498,9 @@ You have to write a script using the Giorgio library.
         """
         self.ai_client.reset()
 
-        # Get scripts content as exemples and, if no scipts are found, get
+        # Get scripts content as exemples and, if no scripts are found, get
         # template content instead
-        exemples = [content for _, content in self._get_scripts_content()]
+        exemples = self._select_scripts()
         if not exemples:
             exemples.append(self._get_script_template_content())
 
@@ -465,8 +512,9 @@ You have to write a script using the Giorgio library.
         )
         client.with_doc("Giorgio README", self._get_readme_content())
 
-        # Add project modules as context documents
-        for mod_name, mod_content in self._get_modules_content():
+        # Add selected modules as context documents
+        selected_modules = self._select_modules()
+        for mod_name, mod_content in selected_modules:
             client.with_doc(f"Module: {mod_name}", mod_content, strategy="full")
 
         # Add examples (existing scripts or template)
