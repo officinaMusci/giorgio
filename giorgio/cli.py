@@ -129,7 +129,7 @@ def new(
 
     try:
         if ai_prompt:
-            client = AIScriptingClient.from_project_config(project_root)
+            client = AIScriptingClient(project_root)
             script_content = client.generate_script(ai_prompt)
 
             create_script(project_root, script, template=script_content)

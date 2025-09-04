@@ -324,35 +324,18 @@ You have to write a script using the Giorgio library.
 - The script must include CONFIG, PARAMS, and a run(context) function as shown in the template.
 """
 
-    def __init__(self, api_url: str, model: str, api_key: str = None):
+    def __init__(self, project_root: Union[str, Path]):
         """
-        Initialize the scripting client with API endpoint, model, and key.
-
-        :param api_url: Base URL of the AI service.
-        :type api_url: str
-        :param model: Name of the AI model to use.
-        :type model: str
-        :param api_key: Service authentication token.
-        :type api_key: str, optional
-        :returns: None
-        :rtype: None
-        """
-        cfg = ClientConfig(api_key=api_key, base_url=api_url, model=model)
-        self.ai_client = AIClient(cfg)
-
-    @classmethod
-    def from_project_config(cls, project_root: Union[str, Path]):
-        """
-        Load AI config from .giorgio/config.json and build a client.
+        Initialize the scripting client using project config from .giorgio/config.json.
 
         :param project_root: Root directory of the project.
-        :type project_root: Path
-        :returns: Instantiated AIScriptingClient.
-        :rtype: AIScriptingClient
+        :type project_root: Union[str, Path]
+        :returns: None
+        :rtype: None
         :raises RuntimeError: If required AI config fields are missing.
         """
+        project_root = Path(project_root)
         config = get_project_config(project_root)
-
         ai_cfg = config.get("ai", {})
         api_url = ai_cfg.get("url")
         model = ai_cfg.get("model")
@@ -362,9 +345,85 @@ You have to write a script using the Giorgio library.
             raise RuntimeError(
                 "AI config missing in .giorgio/config.json (need 'ai': { 'url', 'model', ... })"
             )
+
+        cfg = ClientConfig(api_key=api_key, base_url=api_url, model=model)
         
-        client = cls(api_url, model, api_key)
-        return client
+        self.ai_client = AIClient(cfg)
+        self.project_root = project_root
+    
+    def _get_modules_content(self) -> List[Tuple[str, str]]:
+        """
+        Get Python modules content from the project's configured module paths.
+
+        :returns: A list of tuples containing module names and their corresponding code.
+        :rtype: List[Tuple[str, str]]
+        """
+        config = get_project_config(self.project_root)
+        module_paths: List[str] = config.get("module_paths", ["modules"])
+
+        modules: List[Tuple[str, str]] = []
+        for module_dir in module_paths:
+            abs_dir = (self.project_root / module_dir).resolve()
+            if abs_dir.exists() and abs_dir.is_dir():
+                for py_file in abs_dir.rglob("*.py"):
+                    try:
+                        rel_path = py_file.relative_to(self.project_root)
+                    except ValueError:
+                        rel_path = py_file
+
+                    content = py_file.read_text(encoding="utf-8").strip()
+                    python_path = ".".join(rel_path.with_suffix("").parts)
+                    modules.append((python_path, content))
+
+        return modules
+
+    def _get_script_template_content(self) -> str:
+        """
+        Get the content of the script template file.
+
+        :returns: The content of the template file.
+        :rtype: str
+        """
+        template_path = Path(__file__).parent / "templates" / "script_template.py"
+
+        return template_path.read_text().strip()
+    
+    def _get_scripts_content(self) -> List[Tuple[str, str]]:
+        """
+        Get Python scripts content from the project's scripts directory.
+
+        :returns: A list of tuples containing script names and their corresponding code.
+        :rtype: List[Tuple[str, str]]
+        """
+        scripts_dir = self.project_root / "scripts"
+        scripts: List[Tuple[str, str]] = []
+
+        if scripts_dir.exists() and scripts_dir.is_dir():
+            for script_file in scripts_dir.rglob("*.py"):
+                try:
+                    rel_path = script_file.relative_to(self.project_root)
+                except ValueError:
+                    rel_path = script_file
+
+                content = script_file.read_text(encoding="utf-8").strip()
+                script_name = str(rel_path.with_suffix(""))
+                scripts.append((script_name, content))
+
+        return scripts
+
+    def _get_readme_content(self) -> str:
+        """
+        Get the project's README.md file content for context.
+
+        :returns: The content of README.md.
+        :rtype: str
+        :raises FileNotFoundError: If README.md does not exist.
+        """
+        readme_path = Path(__file__).parent.parent / "README.md"
+        if not readme_path.exists():
+            raise FileNotFoundError(f"README.md not found at {readme_path}")
+
+        return readme_path.read_text().strip()
 
     def _unwrap_script(self, response: str) -> str:
         """
@@ -392,12 +451,11 @@ You have to write a script using the Giorgio library.
         """
         self.ai_client.reset()
 
-        # Load example template and project README
-        template_path = Path(__file__).parent / "templates" / "script_template.py"
-        template_example = template_path.read_text().strip()
-
-        readme_path = Path(__file__).parent.parent / "README.md"
-        readme_text = readme_path.read_text().strip()
+        # Get scripts content as exemples and, if no scipts are found, get
+        # template content instead
+        exemples = [content for _, content in self._get_scripts_content()]
+        if not exemples:
+            exemples.append(self._get_script_template_content())
 
         # Build prompt
         client = self.ai_client
@@ -405,8 +463,14 @@ You have to write a script using the Giorgio library.
         client.with_instructions(
             f"""{self.role_description.strip()}\n\n{self.mission_description.strip()}"""
         )
-        client.with_doc("Giorgio README", readme_text)
-        client.with_examples([template_example])
+        client.with_doc("Giorgio README", self._get_readme_content())
+
+        # Add project modules as context documents
+        for mod_name, mod_content in self._get_modules_content():
+            client.with_doc(f"Module: {mod_name}", mod_content, strategy="full")
+
+        # Add examples (existing scripts or template)
+        client.with_examples(exemples)
 
         # Ask for the script
         script = client.ask(instructions)
