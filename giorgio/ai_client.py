@@ -185,8 +185,7 @@ class AIClient(Generic[T]):
     def with_doc(
         self,
         name: str,
-        content: str,
-        strategy: Literal["full", "summary", "chunk"] = "summary",
+        content: str
     ) -> "AIClient[T]":
         """
         Attach a named context document to the prompt as a user–assistant message pair.
@@ -195,8 +194,6 @@ class AIClient(Generic[T]):
         :type name: str
         :param content: Raw text of the document.
         :type content: str
-        :param strategy: How to present the doc ("full", "summary", "chunk").
-        :type strategy: Literal["full", "summary", "chunk"]
         :returns: Self, for method chaining.
         :rtype: AIClient[T]
         """
@@ -524,7 +521,7 @@ You have to write a script using the Giorgio library.
         # Add selected modules as context documents
         selected_modules = self._select_modules()
         for mod_name, mod_content in selected_modules:
-            client.with_doc(f"Module: {mod_name}", mod_content, strategy="full")
+            client.with_doc(f"Module: {mod_name}", mod_content)
 
         # Add examples (existing scripts or template)
         client.with_examples(exemples)
