@@ -283,7 +283,3 @@ def get_project_config(project_root: Path):
     with open(config_path, "r", encoding="utf-8") as f:
         config = json.load(f)
     return MappingProxyType(config)
-    with open(config_path, "r", encoding="utf-8") as f:
-        config = json.load(f)
-    return MappingProxyType(config)
-
