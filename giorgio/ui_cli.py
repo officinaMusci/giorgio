@@ -1,5 +1,4 @@
 import sys
-import questionary
 from typing import Any, Dict, List
 
 from .ui_renderer import UIRenderer
