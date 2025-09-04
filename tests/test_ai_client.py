@@ -124,14 +124,14 @@ def test_aiscriptingclient_from_project_config(monkeypatch):
         }
     }
     monkeypatch.setattr("giorgio.ai_client.get_project_config", lambda path: fake_config)
-    client = AIScriptingClient.from_project_config(Path("."))
+    client = AIScriptingClient(Path("."))
     assert isinstance(client, AIScriptingClient)
     assert client.ai_client.config.model == "gpt-test"
 
 def test_aiscriptingclient_from_project_config_missing(monkeypatch):
     monkeypatch.setattr("giorgio.ai_client.get_project_config", lambda path: {})
     with pytest.raises(RuntimeError):
-        AIScriptingClient.from_project_config(Path("."))
+        AIScriptingClient(Path("."))
 
 def test_aiscriptingclient_generate_script(monkeypatch, tmp_path):
     # Patch template and README files
@@ -143,10 +143,14 @@ def test_aiscriptingclient_generate_script(monkeypatch, tmp_path):
     # Patch __file__ to simulate location
     monkeypatch.setattr("giorgio.ai_client.__file__", str(tmp_path / "ai_client.py"))
 
-    # Patch AIClient.ask_raw to return code with markdown
-    client = AIScriptingClient("http://api", "gpt-test", "tok")
-    client.ai_client.ask_raw = MagicMock(return_value="```python\nprint('hi')\n```")
-    client.ai_client.reset = MagicMock()
+    # Patch AIClient.ask to return code with markdown
+    class DummyAIClient:
+        def reset(self): pass
+        def with_instructions(self, *a, **k): return self
+        def with_doc(self, *a, **k): return self
+        def with_examples(self, *a, **k): return self
+        def ask(self, prompt):
+            return "```python\nprint('hi')\n```"
 
     # Patch Path.read_text to use our files
     orig_read_text = Path.read_text
@@ -158,32 +162,90 @@ def test_aiscriptingclient_generate_script(monkeypatch, tmp_path):
         return orig_read_text(self, *a, **kw)
     monkeypatch.setattr(Path, "read_text", fake_read_text)
 
-    # Patch _unwrap_script to just return the input string (avoid regex on MagicMock)
+    # Patch Path.exists to always return True for README.md
+    orig_exists = Path.exists
+    def fake_exists(self):
+        if self.name == "README.md":
+            return True
+        return orig_exists(self)
+    monkeypatch.setattr(Path, "exists", fake_exists)
+
+    # Patch _unwrap_script to just return the input string (avoid regex on DummyAIClient)
     monkeypatch.setattr(AIScriptingClient, "_unwrap_script", lambda self, s: "print('hi')")
 
+    # Patch get_project_config to provide AI config
+    monkeypatch.setattr("giorgio.ai_client.get_project_config", lambda path: {
+        "ai": {"url": "http://api", "model": "gpt-test", "token": "tok"}
+    })
+
+    client = AIScriptingClient(tmp_path)
+    client.ai_client = DummyAIClient()
     script = client.generate_script("do something")
     assert "print('hi')" in script
     assert "```" not in script
 
-def test_clean_markdown_variants():
-    # Provide a local implementation for testing
-    def _clean_markdown(s):
-        import re
-        # Remove triple quotes
-        if s.startswith('"""') and s.endswith('"""'):
-            return s[3:-3]
-        if s.startswith("'''") and s.endswith("'''"):
-            return s[3:-3]
-        # Remove markdown code block
-        m = re.match(r"```(?:python|py)?\n?([\s\S]*?)\n?```", s, re.IGNORECASE)
-        if m:
-            return m.group(1)
-        return s
-    # Triple quotes
-    assert _clean_markdown('"""print(1)"""') == "print(1)"
-    assert _clean_markdown("'''print(2)'''") == "print(2)"
-    # Markdown code block
-    assert _clean_markdown("```python\nprint(3)\n```") == "print(3)"
-    assert _clean_markdown("```py\nprint(4)\n```") == "print(4)"
-    # No formatting
-    assert _clean_markdown("print(5)") == "print(5)"
+def test_messages_merges_system_messages(dummy_config):
+    client = AIClient(dummy_config)
+    client._messages = [
+        Message(role="system", content="sys1"),
+        Message(role="system", content="sys2"),
+        Message(role="user", content="hi"),
+        Message(role="assistant", content="hello"),
+    ]
+    msgs = client.messages
+    assert msgs[0]["role"] == "system"
+    assert "sys1" in msgs[0]["content"]
+    assert "sys2" in msgs[0]["content"]
+    assert msgs[1]["role"] == "user"
+    assert msgs[2]["role"] == "assistant"
+
+def test_with_examples_adds_user_and_assistant_messages(dummy_config):
+    client = AIClient(dummy_config)
+    client.with_examples(["ex1", "ex2"])
+    # Each example adds a user and assistant message
+    assert client._messages[0].role == "user"
+    assert client._messages[1].role == "assistant"
+    assert client._messages[1].content == "ex1"
+    assert client._messages[2].role == "user"
+    assert client._messages[3].role == "assistant"
+    assert client._messages[3].content == "ex2"
+
+def test_ask_sets_default_response_model_if_none(dummy_config):
+    client = AIClient(dummy_config)
+    client.client = MagicMock()
+    mock_resp = MagicMock()
+    mock_resp.value = "foo"
+    client.client.chat.completions.create.return_value = mock_resp
+    client._response_model = None
+    client._wrapped_value = False
+    client._messages = []
+    result = client.ask("prompt")
+    assert result == "foo"
+    assert client._response_model is not None
+    assert client._wrapped_value is True
+
+def test_ask_appends_assistant_message(dummy_config):
+    client = AIClient(dummy_config)
+    client.client = MagicMock()
+    mock_resp = MagicMock()
+    mock_resp.value = "bar"
+    client.client.chat.completions.create.return_value = mock_resp
+    client._response_model = client._wrap_primitive_in_model(str)
+    client._wrapped_value = True
+    client._messages = []
+    client.ask("prompt")
+    # Last message should be assistant with the returned value
+    assert client._messages[-1].role == "assistant"
+    assert client._messages[-1].content == "bar"
+
+def test_ask_raw_appends_assistant_message(dummy_config):
+    client = AIClient(dummy_config)
+    client._raw_client = MagicMock()
+    mock_resp = MagicMock()
+    mock_resp.choices = [MagicMock(message=MagicMock(content="raw output"))]
+    client._raw_client.chat.completions.create.return_value = mock_resp
+    client._messages = []
+    client.ask_raw("prompt")
+    # Last message should be assistant with the returned value
+    assert client._messages[-1].role == "assistant"
+    assert client._messages[-1].content == "raw output"

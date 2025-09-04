@@ -55,9 +55,8 @@ def test_new_script_ai(monkeypatch, tmp_path):
     runner.invoke(app, ["init"])
     # Patch AIScriptingClient to avoid real API call
     class DummyAIScriptingClient:
-        @classmethod
-        def from_project_config(cls, project_root):
-            return cls()
+        def __init__(self, project_root):
+            pass
         def generate_script(self, prompt):
             assert prompt == "do something cool"
             return "# ai generated script"
@@ -82,8 +81,7 @@ def test_new_ai_config_error(monkeypatch, tmp_path):
     monkeypatch.chdir(tmp_path)
     runner.invoke(app, ["init"])
     class DummyAIScriptingClient:
-        @classmethod
-        def from_project_config(cls, project_root):
+        def __init__(self, project_root):
             raise RuntimeError("bad config")
     monkeypatch.setattr("giorgio.cli.AIScriptingClient", DummyAIScriptingClient)
     result = runner.invoke(app, ["new", "failai", "--ai-prompt", "x"])
@@ -94,9 +92,8 @@ def test_new_ai_generation_error(monkeypatch, tmp_path):
     monkeypatch.chdir(tmp_path)
     runner.invoke(app, ["init"])
     class DummyAIScriptingClient:
-        @classmethod
-        def from_project_config(cls, project_root):
-            return cls()
+        def __init__(self, project_root):
+            pass
         def generate_script(self, prompt):
             raise Exception("ai fail")
     monkeypatch.setattr("giorgio.cli.AIScriptingClient", DummyAIScriptingClient)
