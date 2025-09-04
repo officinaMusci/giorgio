@@ -64,7 +64,8 @@ def test_resolve_response_model_with_primitive(dummy_config):
 def test_with_instructions_and_examples(dummy_config):
     client = AIClient(dummy_config)
     client.with_instructions("Do this.")
-    client.with_examples([("UserQ", "AssistantA")])
+    # Use with_example instead of with_examples
+    client.with_example("AssistantA")
     assert client._messages[0].role == "system"
     assert client._messages[1].role == "user"
     assert client._messages[2].role == "assistant"
@@ -148,7 +149,7 @@ def test_aiscriptingclient_generate_script(monkeypatch, tmp_path):
         def reset(self): pass
         def with_instructions(self, *a, **k): return self
         def with_doc(self, *a, **k): return self
-        def with_examples(self, *a, **k): return self
+        def with_example(self, *a, **k): return self
         def ask(self, prompt):
             return "```python\nprint('hi')\n```"
 
@@ -201,7 +202,9 @@ def test_messages_merges_system_messages(dummy_config):
 
 def test_with_examples_adds_user_and_assistant_messages(dummy_config):
     client = AIClient(dummy_config)
-    client.with_examples(["ex1", "ex2"])
+    # Use with_example for each example
+    client.with_example("ex1")
+    client.with_example("ex2")
     # Each example adds a user and assistant message
     assert client._messages[0].role == "user"
     assert client._messages[1].role == "assistant"
