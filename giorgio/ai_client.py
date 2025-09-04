@@ -258,7 +258,10 @@ class AIClient(Generic[T]):
             max_retries=self.config.max_retries,
         )
 
-        return response.value if self._wrapped_value else response  # type: ignore
+        message = response.value if self._wrapped_value else response  # type: ignore
+        self._messages.append(Message(role="assistant", content=message))
+
+        return message
 
     def ask_raw(self, prompt: str) -> str:
         """
@@ -279,7 +282,10 @@ class AIClient(Generic[T]):
             timeout=self.config.request_timeout,
         )
 
-        return response.choices[0].message.content  # type: ignore
+        message = response.choices[0].message.content  # type: ignore
+        self._messages.append(Message(role="assistant", content=message))
+        
+        return message
 
     def reset(self) -> None:
         """
