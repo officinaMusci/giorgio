@@ -33,8 +33,8 @@ T = TypeVar("T")
 
 @dataclass
 class ClientConfig:
-    """Configuration settings for the OpenAI backend via Instructor."""
-    api_key: Optional[str] = field(default_factory=lambda: os.getenv("OPENAI_API_KEY"))
+    """Configuration settings for the AI backend via Instructor."""
+    api_key: Optional[str] = field(default_factory=lambda: os.getenv("AI_API_KEY"))
     base_url: Optional[str] = None
     model: str = "gpt-4.1-mini"
     temperature: float = 0.0
@@ -131,7 +131,7 @@ class AIClient(Generic[T]):
     @property
     def messages(self) -> List[Dict[str, str]]:
         """
-        Returns the list of message dicts for the OpenAI API, merging all system
+        Returns the list of message dicts for the AI API, merging all system
         messages into one at the beginning.
         """
         system_msgs = [m.content for m in self._messages if m.role == "system"]
@@ -334,13 +334,13 @@ You have to write a script using the Giorgio library.
         project_root = Path(project_root)
 
         # Read AI config from environment variables
-        api_key = os.getenv("OPENAI_API_KEY")
-        api_url = os.getenv("OPENAI_BASE_URL")
-        model = os.getenv("OPENAI_MODEL") or os.getenv("AI_API_MODEL")  # fallback for legacy env var
+        api_key = os.getenv("AI_API_KEY")
+        api_url = os.getenv("AI_BASE_URL")
+        model = os.getenv("AI_MODEL") or os.getenv("AI_API_MODEL")  # fallback for legacy env var
 
         if not (api_key and api_url and model):
             raise RuntimeError(
-                "Missing AI config: set OPENAI_API_KEY, OPENAI_BASE_URL, and OPENAI_MODEL in your environment or .env file."
+                "Missing AI config: set AI_API_KEY, AI_BASE_URL, and AI_MODEL in your environment or .env file."
             )
 
         cfg = ClientConfig(api_key=api_key, base_url=api_url, model=model)
@@ -526,5 +526,4 @@ You have to write a script using the Giorgio library.
         script = client.ask(instructions)
         script = self._unwrap_script(script)
 
-        return script
         return script
