@@ -333,6 +333,17 @@ You have to write a script using the Giorgio library.
         """
         project_root = Path(project_root)
 
+        env_file = project_root / ".env"
+
+        if env_file.exists():
+            try:
+                from dotenv import load_dotenv
+
+            except ImportError:
+                raise RuntimeError("python-dotenv is required to load .env files.")
+
+            load_dotenv(dotenv_path=str(env_file), override=False)
+
         # Read AI config from environment variables
         api_key = os.getenv("AI_API_KEY")
         api_url = os.getenv("AI_BASE_URL")
