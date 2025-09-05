@@ -25,7 +25,7 @@ def dummy_config():
     return ClientConfig(api_key="test-key", base_url="http://test", model="gpt-test")
 
 def test_client_config_defaults(monkeypatch):
-    monkeypatch.setenv("OPENAI_API_KEY", "env-key")
+    monkeypatch.setenv("AI_API_KEY", "env-key")
     cfg = ClientConfig()
     assert cfg.api_key == "env-key"
     assert cfg.model == "gpt-4.1-mini"
@@ -118,18 +118,18 @@ def test_ask_raw_calls_openai_and_returns_content(dummy_config):
 
 def test_aiscriptingclient_from_project_config(monkeypatch):
     # Set required env vars for AI config
-    monkeypatch.setenv("OPENAI_API_KEY", "tok")
-    monkeypatch.setenv("OPENAI_BASE_URL", "http://api")
-    monkeypatch.setenv("OPENAI_MODEL", "gpt-test")
+    monkeypatch.setenv("AI_API_KEY", "tok")
+    monkeypatch.setenv("AI_BASE_URL", "http://api")
+    monkeypatch.setenv("AI_MODEL", "gpt-test")
     client = AIScriptingClient(Path("."))
     assert isinstance(client, AIScriptingClient)
     assert client.ai_client.config.model == "gpt-test"
 
 def test_aiscriptingclient_from_project_config_missing(monkeypatch):
     # Unset env vars to simulate missing config
-    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
-    monkeypatch.delenv("OPENAI_BASE_URL", raising=False)
-    monkeypatch.delenv("OPENAI_MODEL", raising=False)
+    monkeypatch.delenv("AI_API_KEY", raising=False)
+    monkeypatch.delenv("AI_BASE_URL", raising=False)
+    monkeypatch.delenv("AI_MODEL", raising=False)
     with pytest.raises(RuntimeError):
         AIScriptingClient(Path("."))
 
@@ -179,9 +179,9 @@ def test_aiscriptingclient_generate_script(monkeypatch, tmp_path):
     monkeypatch.setattr(AIScriptingClient, "_unwrap_script", lambda self, s: "print('hi')")
 
     # Set required env vars for AI config
-    monkeypatch.setenv("OPENAI_API_KEY", "tok")
-    monkeypatch.setenv("OPENAI_BASE_URL", "http://api")
-    monkeypatch.setenv("OPENAI_MODEL", "gpt-test")
+    monkeypatch.setenv("AI_API_KEY", "tok")
+    monkeypatch.setenv("AI_BASE_URL", "http://api")
+    monkeypatch.setenv("AI_MODEL", "gpt-test")
 
     client = AIScriptingClient(tmp_path)
     client.ai_client = DummyAIClient()
