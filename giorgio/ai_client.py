@@ -471,11 +471,12 @@ You have to write a script using the Giorgio library.
 
         return selected
 
-    def _get_readme_content(self) -> str:
+    def _get_script_anatomy_content(self) -> str:
         """
-        Get the project's README.md file content for context.
+        Get the project's README.md script anatomy section for context.
+        Only extract the section between <!-- BEGIN GIORGIO_SCRIPT_ANATOMY --> and <!-- END GIORGIO_SCRIPT_ANATOMY -->.
 
-        :returns: The content of README.md.
+        :returns: The content of the script anatomy section in README.md.
         :rtype: str
         :raises FileNotFoundError: If README.md does not exist.
         """
@@ -483,7 +484,19 @@ You have to write a script using the Giorgio library.
         if not readme_path.exists():
             raise FileNotFoundError(f"README.md not found at {readme_path}")
 
-        return readme_path.read_text().strip()
+        content = readme_path.read_text().strip()
+        
+        start = "<!-- BEGIN GIORGIO_SCRIPT_ANATOMY -->"
+        end = "<!-- END GIORGIO_SCRIPT_ANATOMY -->"
+        
+        start_idx = content.find(start)
+        end_idx = content.find(end)
+        
+        if start_idx != -1 and end_idx != -1 and start_idx < end_idx:
+            # Extract only the section between the markers (excluding the markers themselves)
+            return content[start_idx + len(start):end_idx].strip()
+        
+        return content
 
     def _unwrap_script(self, response: str) -> str:
         """
@@ -517,7 +530,7 @@ You have to write a script using the Giorgio library.
         client.with_instructions(
             f"""{self.role_description.strip()}\n\n{self.mission_description.strip()}"""
         )
-        client.with_doc("Giorgio README", self._get_readme_content())
+        client.with_doc("Giorgio README", self._get_script_anatomy_content())
 
         # Add selected modules as context documents
         selected_modules = self._select_modules()

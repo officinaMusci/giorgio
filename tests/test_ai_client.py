@@ -268,3 +268,49 @@ def test_ask_raw_appends_assistant_message(dummy_config):
     assert client._messages[-1].role == "assistant"
     assert client._messages[-1].content == "raw output"
     assert client._messages[-1].content == "raw output"
+
+def test_get_script_anatomy_content_extracts_section(monkeypatch, tmp_path):
+    # Prepare a README.md with the special markers and extra content
+    readme_content = """
+Intro text
+<!-- BEGIN GIORGIO_SCRIPT_ANATOMY -->
+This is the script anatomy section.
+It should be extracted.
+<!-- END GIORGIO_SCRIPT_ANATOMY -->
+Outro text
+"""
+    readme_path = tmp_path / "README.md"
+    readme_path.write_text(readme_content)
+
+    # Patch __file__ to simulate location
+    monkeypatch.setattr("giorgio.ai_client.__file__", str(tmp_path / "ai_client.py"))
+
+    # Save original methods before patching
+    orig_read_text = Path.read_text
+    orig_exists = Path.exists
+
+    def fake_read_text(self, *a, **kw):
+        if self.name == "README.md":
+            # Call the original read_text, not the patched one
+            return orig_read_text(readme_path, *a, **kw)
+        return orig_read_text(self, *a, **kw)
+
+    def fake_exists(self):
+        if self.name == "README.md":
+            return True
+        return orig_exists(self)
+
+    monkeypatch.setattr(Path, "read_text", fake_read_text)
+    monkeypatch.setattr(Path, "exists", fake_exists)
+
+    # Set required env vars for AI config to avoid RuntimeError
+    monkeypatch.setenv("AI_API_KEY", "tok")
+    monkeypatch.setenv("AI_BASE_URL", "http://api")
+    monkeypatch.setenv("AI_MODEL", "gpt-test")
+
+    client = AIScriptingClient(tmp_path)
+    result = client._get_script_anatomy_content()
+    assert "This is the script anatomy section." in result
+    assert "Intro text" not in result
+    assert "Outro text" not in result
+    assert "<!--" not in result
