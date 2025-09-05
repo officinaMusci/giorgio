@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 1.5.5 (2025-09-05)
+
+### Fix
+
+- enhance README.md discovery and update package data configuration in pyproject.toml
+
 ## 1.5.4 (2025-09-05)
 
 ### Fix
