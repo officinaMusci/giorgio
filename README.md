@@ -8,7 +8,7 @@
         <img alt="PyPI Version" src="https://badge.fury.io/py/giorgio.svg"/>
     </a>
     <a href="https://www.python.org/downloads/release/python-380/">
-        <img alt="Python Version" src="https://img.shields.io/badge/python-3.8%2B-blue.svg"/>
+        <img alt="Python Version" src="https://img.shields.io/badge/python-3.10%2B-blue.svg"/>
     </a>
     <a href="https://codecov.io/gh/officinaMusci/giorgio">
         <img alt="Codecov Coverage" src="https://codecov.io/gh/officinaMusci/giorgio/branch/main/graph/badge.svg"/>
@@ -74,7 +74,7 @@ Script files are quick to write—until they aren’t. Once you add parameters, 
 
 ## Installation
 
-Giorgio supports **Python 3.8+**. Installing with **pipx** keeps your CLI isolated and on your PATH:
+Giorgio supports **Python 3.10+**. Installing with **pipx** keeps your CLI isolated and on your PATH:
 
 ```bash
 pipx install giorgio
@@ -396,7 +396,7 @@ Development follows a trunk-based workflow using short-lived branches created fr
 
 Please write commit messages according to the [Conventional Commits](https://www.conventionalcommits.org/) specification. To make this easier, use the [commitizen](https://commitizen-tools.github.io/commitizen/) tool, which helps you generate properly formatted commit messages. You can run `cz commit` instead of `git commit` to be guided through the process.
 
-All pull requests against `main` trigger the [CI workflow](./.github/workflows/ci.yml), which runs linting, tests across Python 3.8–3.12 on Linux, macOS, and Windows, and enforces the coverage threshold. After a push to the `main` branch, the [version bump workflow](./.github/workflows/bump.yml) runs to bump the version with Commitizen and update `CHANGELOG.md`, pushing the new `v*` tag. Pushing that tag then triggers the [publish workflow](./.github/workflows/publish.yml) to run final tests & coverage upload, build the distribution, and publish the package to PyPI.
+All pull requests against `main` trigger the [CI workflow](./.github/workflows/ci.yml), which runs linting, tests across Python 3.10–3.12 on Linux, macOS, and Windows, and enforces the coverage threshold. After a push to the `main` branch, the [version bump workflow](./.github/workflows/bump.yml) runs to bump the version with Commitizen and update `CHANGELOG.md`, pushing the new `v*` tag. Pushing that tag then triggers the [publish workflow](./.github/workflows/publish.yml) to run final tests & coverage upload, build the distribution, and publish the package to PyPI.
 
 **Please ensure that every contribution includes appropriate tests.** Adding or updating tests helps maintain code quality and reliability for all users.
 
