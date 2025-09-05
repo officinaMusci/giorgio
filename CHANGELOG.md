@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 1.5.3 (2025-09-05)
+
+### Fix
+
+- remove MANIFEST.in and update pyproject.toml to include README.md and LICENSE in package data
+
 ## 1.5.2 (2025-09-05)
 
 ### Fix
