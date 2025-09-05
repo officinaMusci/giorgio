@@ -323,28 +323,27 @@ You have to write a script using the Giorgio library.
 
     def __init__(self, project_root: Union[str, Path]):
         """
-        Initialize the scripting client using project config from .giorgio/config.json.
+        Initialize the scripting client using AI config from environment variables.
 
         :param project_root: Root directory of the project.
         :type project_root: Union[str, Path]
         :returns: None
         :rtype: None
-        :raises RuntimeError: If required AI config fields are missing.
+        :raises RuntimeError: If required AI config env vars are missing.
         """
         project_root = Path(project_root)
-        config = get_project_config(project_root)
-        ai_cfg = config.get("ai", {})
-        api_url = ai_cfg.get("url")
-        model = ai_cfg.get("model")
-        api_key = ai_cfg.get("token")
 
-        if not (api_url and model):
+        # Read AI config from environment variables
+        api_key = os.getenv("OPENAI_API_KEY")
+        api_url = os.getenv("OPENAI_BASE_URL")
+        model = os.getenv("OPENAI_MODEL") or os.getenv("AI_API_MODEL")  # fallback for legacy env var
+
+        if not (api_key and api_url and model):
             raise RuntimeError(
-                "AI config missing in .giorgio/config.json (need 'ai': { 'url', 'model', ... })"
+                "Missing AI config: set OPENAI_API_KEY, OPENAI_BASE_URL, and OPENAI_MODEL in your environment or .env file."
             )
 
         cfg = ClientConfig(api_key=api_key, base_url=api_url, model=model)
-        
         self.ai_client = AIClient(cfg)
         self.project_root = project_root
     
@@ -527,4 +526,5 @@ You have to write a script using the Giorgio library.
         script = client.ask(instructions)
         script = self._unwrap_script(script)
 
+        return script
         return script

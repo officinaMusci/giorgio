@@ -117,20 +117,19 @@ def test_ask_raw_calls_openai_and_returns_content(dummy_config):
     assert result == "raw output"
 
 def test_aiscriptingclient_from_project_config(monkeypatch):
-    fake_config = {
-        "ai": {
-            "url": "http://api",
-            "model": "gpt-test",
-            "token": "tok"
-        }
-    }
-    monkeypatch.setattr("giorgio.ai_client.get_project_config", lambda path: fake_config)
+    # Set required env vars for AI config
+    monkeypatch.setenv("OPENAI_API_KEY", "tok")
+    monkeypatch.setenv("OPENAI_BASE_URL", "http://api")
+    monkeypatch.setenv("OPENAI_MODEL", "gpt-test")
     client = AIScriptingClient(Path("."))
     assert isinstance(client, AIScriptingClient)
     assert client.ai_client.config.model == "gpt-test"
 
 def test_aiscriptingclient_from_project_config_missing(monkeypatch):
-    monkeypatch.setattr("giorgio.ai_client.get_project_config", lambda path: {})
+    # Unset env vars to simulate missing config
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.delenv("OPENAI_BASE_URL", raising=False)
+    monkeypatch.delenv("OPENAI_MODEL", raising=False)
     with pytest.raises(RuntimeError):
         AIScriptingClient(Path("."))
 
@@ -140,6 +139,11 @@ def test_aiscriptingclient_generate_script(monkeypatch, tmp_path):
     template_path.mkdir()
     (template_path / "script_template.py").write_text("TEMPLATE")
     (tmp_path / "README.md").write_text("README")
+
+    # Create minimal .giorgio/config.json so get_project_config does not fail
+    giorgio_dir = tmp_path / ".giorgio"
+    giorgio_dir.mkdir()
+    (giorgio_dir / "config.json").write_text("{}")
 
     # Patch __file__ to simulate location
     monkeypatch.setattr("giorgio.ai_client.__file__", str(tmp_path / "ai_client.py"))
@@ -174,10 +178,10 @@ def test_aiscriptingclient_generate_script(monkeypatch, tmp_path):
     # Patch _unwrap_script to just return the input string (avoid regex on DummyAIClient)
     monkeypatch.setattr(AIScriptingClient, "_unwrap_script", lambda self, s: "print('hi')")
 
-    # Patch get_project_config to provide AI config
-    monkeypatch.setattr("giorgio.ai_client.get_project_config", lambda path: {
-        "ai": {"url": "http://api", "model": "gpt-test", "token": "tok"}
-    })
+    # Set required env vars for AI config
+    monkeypatch.setenv("OPENAI_API_KEY", "tok")
+    monkeypatch.setenv("OPENAI_BASE_URL", "http://api")
+    monkeypatch.setenv("OPENAI_MODEL", "gpt-test")
 
     client = AIScriptingClient(tmp_path)
     client.ai_client = DummyAIClient()
@@ -251,4 +255,5 @@ def test_ask_raw_appends_assistant_message(dummy_config):
     client.ask_raw("prompt")
     # Last message should be assistant with the returned value
     assert client._messages[-1].role == "assistant"
+    assert client._messages[-1].content == "raw output"
     assert client._messages[-1].content == "raw output"
