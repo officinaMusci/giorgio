@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 1.5.2 (2025-09-05)
+
+### Fix
+
+- update MANIFEST.in and pyproject.toml to include LICENSE and enable package data inclusion
+
 ## 1.5.1 (2025-09-05)
 
 ### Fix
