@@ -4,6 +4,7 @@ from pathlib import Path
 from importlib.metadata import version as _get_version, PackageNotFoundError
 import questionary
 import importlib.util
+from types import MappingProxyType
 
 
 def initialize_project(root: Path, project_name: str = None) -> None:
@@ -81,60 +82,72 @@ def initialize_project(root: Path, project_name: str = None) -> None:
         json.dump(default_config, f, indent=2)
 
 
-def create_script(root: Path, script_relative_path: str) -> None:
+def create_script(project_root: Path, script: str, template: str = None):
     """
-    Scaffold a new script under the 'scripts/' directory.
+    Creates a new script directory and script.py file under scripts/.
 
-    Creates a folder at scripts/<script_relative_path>/ containing:
-      - __init__.py         (to allow importing if needed)
-      - script.py           (with boilerplate read from a template)
-
-    :param root: Path to the project root.
-    :type root: Path
-    :param script_relative_path: Relative path under 'scripts/' where the new
-    script should be created (e.g., "data/clean").
-    :type script_relative_path: str
-    :raises FileNotFoundError: If the 'scripts/' directory does not exist.
-    :raises FileExistsError: If the target script directory already exists.
-    :raises FileNotFoundError: If the script template file does not exist.
+    :param project_root: Project root path.
+    :type project_root: Path
+    :param script: Script name (directory under scripts/).
+    :type script: str
+    :param template: Optional script.py content to use instead of the default template.
+    :type template: Optional[str]
+    :raises FileExistsError: If the script directory already exists.
+    :raises FileNotFoundError: If the scripts directory does not exist.
     """
-
-    scripts_dir = root / "scripts"
+    scripts_dir = project_root / "scripts"
     if not scripts_dir.exists():
-        raise FileNotFoundError(f"'scripts/' directory not found in {root}.")
+        raise FileNotFoundError(f"Scripts directory '{scripts_dir}' does not exist.")
 
-    target_dir = scripts_dir / script_relative_path
-    if target_dir.exists():
-        raise FileExistsError(f"Script directory '{target_dir}' already exists.")
+    script_dir = scripts_dir / script
+    if script_dir.exists():
+        raise FileExistsError(f"Script directory '{script_dir}' already exists.")
 
-    # Create nested directories (data/clean, etc.)
-    target_dir.mkdir(parents=True, exist_ok=False)
-    
-    # Create an __init__.py at each level to allow package import if needed
-    # Example: scripts/data/__init__.py and scripts/data/clean/__init__.py
-    parts = target_dir.relative_to(scripts_dir).parts
-    cumulative = scripts_dir
-    
+    # Create all parent directories and __init__.py at each level
+    parts = script_dir.relative_to(scripts_dir).parts
+    current = scripts_dir
     for part in parts:
-        cumulative = cumulative / part
-        init_path = cumulative / "__init__.py"
-        
-        if not init_path.exists():
-            init_path.touch()
+        current = current / part
+        current.mkdir(exist_ok=True)
+        init_file = current / "__init__.py"
+        if not init_file.exists():
+            init_file.touch()
 
-    # Create script.py from the template
-    script_file = target_dir / "script.py"
-    template_dir = Path(__file__).parent / "templates"
-    template_file = template_dir / "script_template.py"
-    if not template_file.exists():
-        raise FileNotFoundError(f"Template file '{template_file}' not found.")
+    # Determine content
+    if template is not None:
+        # Replace __SCRIPT_PATH__ in provided template
+        script_path_str = script.replace("\\", "/")
+        content = template.replace("__SCRIPT_PATH__", script_path_str)
+    else:
+        # load built-in template file if available
+        base_dir = Path(__file__).parent
+        tpl_file = base_dir / "templates" / "script_template.py"
+        if tpl_file.exists():
+            raw = tpl_file.read_text(encoding="utf-8")
+            script_path_str = script.replace("\\", "/")
+            content = raw.replace("__SCRIPT_PATH__", script_path_str)
+        else:
+            # fallback to default inline template
+            content = '''from giorgio.execution_engine import Context, GiorgioCancellationError
 
-    # Read the template content and replace the __SCRIPT_PATH__ placeholder
-    template_content = template_file.read_text(encoding="utf-8")
-    boilerplate = template_content.replace("__SCRIPT_PATH__", script_relative_path)
+CONFIG = {
+    "name": "",
+    "description": ""
+}
 
-    with script_file.open("w", encoding="utf-8") as f:
-        f.write(boilerplate)
+PARAMS = {}
+
+def run(context: Context):
+    try:
+        # Your script logic here
+        pass
+    except GiorgioCancellationError:
+        print("Execution was cancelled by the user.")
+'''
+
+    # Write out the script file
+    script_file = script_dir / "script.py"
+    script_file.write_text(content, encoding="utf-8")
 
 
 def upgrade_project(root: Path, force: bool = False) -> None:
@@ -255,3 +268,18 @@ def upgrade_project(root: Path, force: bool = False) -> None:
     else:
         print("Upgrade canceled.")
 
+def get_project_config(project_root: Path):
+    """
+    Loads the Giorgio project config.json as a read-only MappingProxyType.
+
+    :param project_root: Path to the project root directory.
+    :type project_root: Path
+    :returns: Read-only config dictionary.
+    :rtype: MappingProxyType
+    :raises FileNotFoundError: If config.json does not exist.
+    :raises json.JSONDecodeError: If config.json is invalid.
+    """
+    config_path = project_root / ".giorgio" / "config.json"
+    with open(config_path, "r", encoding="utf-8") as f:
+        config = json.load(f)
+    return MappingProxyType(config)

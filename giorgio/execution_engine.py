@@ -4,10 +4,10 @@ import importlib.util
 from pathlib import Path
 import signal
 from types import MappingProxyType
-from typing import Any, Dict, Optional, Callable
+from typing import Any, Dict, Optional, Callable, List
 
 from .prompt import prompt_for_params
-
+from .project_manager import get_project_config
 
 class GiorgioCancellationError(Exception):
     """
@@ -104,6 +104,7 @@ class ExecutionEngine:
         
         self.project_root = project_root
         self.env = self._load_env()
+        self.module_paths = self._load_module_paths()
 
     def _load_env(self) -> Dict[str, str]:
         """
@@ -130,6 +131,24 @@ class ExecutionEngine:
 
         return dict(os.environ)
 
+    def _load_module_paths(self):
+        """
+        Load module paths from project config using get_project_config.
+        Returns a list of absolute paths.
+        """
+        try:
+            config = get_project_config(self.project_root)
+        except Exception:
+            return []
+        
+        module_paths: List[str] = config.get("module_paths", [])
+        abs_paths = []
+        
+        for p in module_paths:
+            abs_paths.append(str((self.project_root / p).resolve()))
+        
+        return abs_paths
+
     def _import_script_module(self, script: str):
         """
         Import a script module from the scripts directory.
@@ -144,21 +163,41 @@ class ExecutionEngine:
 
         scripts_dir = self.project_root / "scripts"
         module_path = scripts_dir / script / "script.py"
-        
         if not module_path.exists():
             raise FileNotFoundError(f"Script '{script}' not found under scripts/.")
-        
-        sys.path.insert(0, str(scripts_dir))
-        
+
+        # Prepare sys.path insertions
+        project_root_str = str(self.project_root.resolve())
+        mod_paths = [str(Path(p).resolve()) for p in self.module_paths]
+        paths_to_insert = [project_root_str] + mod_paths + [str(scripts_dir)]
+        inserted = []
+
+        # Insert paths if not already present
+        for p in reversed(paths_to_insert):
+            if p not in sys.path:
+                sys.path.insert(0, p)
+                inserted.append(p)
+
+        # Ensure each module path is a package
+        for mod_path in mod_paths:
+            mod_dir = Path(mod_path)
+            if not mod_dir.exists():
+                raise RuntimeError(f"Module path '{mod_path}' does not exist.")
+            init_py = mod_dir / "__init__.py"
+            if not init_py.exists():
+                init_py.touch()
+
         try:
             name = script.replace("/", ".")
             spec = importlib.util.spec_from_file_location(name, str(module_path))
             module = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(module)  # type: ignore
-        
         finally:
-            sys.path.pop(0)
-        
+            for p in inserted:
+                try:
+                    sys.path.remove(p)
+                except ValueError:
+                    pass
         return module
 
     def _signal_handler(self, signum, frame) -> None:

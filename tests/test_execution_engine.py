@@ -5,10 +5,28 @@ import time
 import signal
 import threading
 import pytest
+import json
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from giorgio.execution_engine import ExecutionEngine
+
+
+def ensure_giorgio_config(tmp_path):
+    giorgio_dir = tmp_path / ".giorgio"
+    giorgio_dir.mkdir(exist_ok=True)
+    config_file = giorgio_dir / "config.json"
+    if not config_file.exists():
+        config_file.write_text(json.dumps({
+            "giorgio_version": "1.0.0",
+            "module_paths": ["modules"]
+        }), encoding="utf-8")
+    # Ensure modules directory exists (required by execution_engine.py)
+    modules_dir = tmp_path / "modules"
+    modules_dir.mkdir(exist_ok=True)
+    init_file = modules_dir / "__init__.py"
+    if not init_file.exists():
+        init_file.write_text("", encoding="utf-8")
 
 
 def write_script(tmp_path: Path, name: str, content: str) -> None:
@@ -19,6 +37,7 @@ def write_script(tmp_path: Path, name: str, content: str) -> None:
 
 
 def test_run_no_params(tmp_path, capsys):
+    ensure_giorgio_config(tmp_path)
     write_script(tmp_path, "noparams", """
 PARAMS = {}
 def run(context):
@@ -33,6 +52,7 @@ def run(context):
 
 
 def test_required_param_missing(tmp_path):
+    ensure_giorgio_config(tmp_path)
     write_script(tmp_path, "required", """
 PARAMS = {
     "x": {"type": int, "required": True}
@@ -46,6 +66,7 @@ def run(context):
 
 
 def test_required_param_provided(tmp_path, capsys):
+    ensure_giorgio_config(tmp_path)
     write_script(tmp_path, "provided", """
 PARAMS = {
     "x": {"type": int, "required": True}
@@ -60,6 +81,7 @@ def run(context):
 
 
 def test_default_param(tmp_path, capsys):
+    ensure_giorgio_config(tmp_path)
     write_script(tmp_path, "default", """
 PARAMS = {
     "x": {"type": int, "default": 7}
@@ -74,6 +96,7 @@ def run(context):
 
 
 def test_invalid_type(tmp_path):
+    ensure_giorgio_config(tmp_path)
     write_script(tmp_path, "badtype", """
 PARAMS = {
     "x": {"type": int, "required": True}
@@ -87,6 +110,7 @@ def run(context):
 
 
 def test_invalid_choice(tmp_path):
+    ensure_giorgio_config(tmp_path)
     write_script(tmp_path, "choice", """
 PARAMS = {
     "x": {"type": str, "choices": ["a", "b"], "required": True}
@@ -100,6 +124,7 @@ def run(context):
 
 
 def test_env_default(tmp_path, capsys, monkeypatch):
+    ensure_giorgio_config(tmp_path)
     write_script(tmp_path, "env", """
 PARAMS = {
     "x": {"type": str, "default": "${MYVAR}"}
@@ -116,6 +141,7 @@ def run(context):
 
 
 def test_add_params_forbidden(tmp_path):
+    ensure_giorgio_config(tmp_path)
     write_script(tmp_path, "add", """
 PARAMS = {}
 def run(context):
@@ -127,6 +153,7 @@ def run(context):
 
 
 def test_boolean_conversion(tmp_path, capsys):
+    ensure_giorgio_config(tmp_path)
     write_script(tmp_path, "bool", """
 PARAMS = {
     "flag": {"type": bool, "required": True}
@@ -146,6 +173,7 @@ def run(context):
 
 
 def test_noninteractive_requires_cli_args(tmp_path):
+    ensure_giorgio_config(tmp_path)
     write_script(tmp_path, "mustcli", """
 PARAMS = {}
 def run(context):
@@ -158,6 +186,7 @@ def run(context):
 
 @pytest.mark.skipif(sys.platform == "win32", reason="SIGINT handling is unreliable on Windows")
 def test_cancellation(tmp_path, capsys):
+    ensure_giorgio_config(tmp_path)
     write_script(tmp_path, "loop", """
 import time
 from giorgio.execution_engine import GiorgioCancellationError
@@ -182,6 +211,7 @@ def run(context):
 
 
 def test_cancellation(tmp_path, capsys):
+    ensure_giorgio_config(tmp_path)
     write_script(tmp_path, "loop", """
 from giorgio.execution_engine import GiorgioCancellationError
 PARAMS = {}
@@ -195,12 +225,14 @@ def run(context):
 
 
 def test_script_not_found(tmp_path):
+    ensure_giorgio_config(tmp_path)
     engine = ExecutionEngine(tmp_path)
     with pytest.raises(FileNotFoundError):
         engine.run_script("doesnotexist", cli_args={})
 
 
 def test_script_missing_run_function(tmp_path):
+    ensure_giorgio_config(tmp_path)
     write_script(tmp_path, "norun", """
 PARAMS = {}
 def not_run(context):
@@ -212,6 +244,7 @@ def not_run(context):
 
 
 def test_add_params_duplicate_key(tmp_path):
+    ensure_giorgio_config(tmp_path)
     write_script(tmp_path, "dup", """
 PARAMS = {
     "x": {"type": int, "default": 1}
@@ -225,6 +258,7 @@ def run(context):
 
 
 def test_add_params_callback(tmp_path, capsys):
+    ensure_giorgio_config(tmp_path)
     write_script(tmp_path, "addcb", """
 PARAMS = {}
 def run(context):
@@ -240,6 +274,7 @@ def run(context):
     assert "42" in captured.out
 
 def test_env_file_loading(tmp_path, capsys):
+    ensure_giorgio_config(tmp_path)
     env_file = tmp_path / ".env"
     env_file.write_text("MYENVVAR=abc123\n", encoding="utf-8")
     scripts_dir = tmp_path / "scripts" / "envload"
@@ -265,6 +300,7 @@ def run(context):
 
 
 def test_call_script(tmp_path, capsys):
+    ensure_giorgio_config(tmp_path)
     write_script(tmp_path, "main", """
 PARAMS = {}
 def run(context):
@@ -282,6 +318,7 @@ def run(context):
 
 
 def test_script_with_choices_and_default(tmp_path, capsys):
+    ensure_giorgio_config(tmp_path)
     write_script(tmp_path, "choices", """
 PARAMS = {
     "color": {"type": str, "choices": ["red", "blue"], "default": "blue"}
@@ -299,6 +336,7 @@ def run(context):
 
 
 def test_script_with_bool_default(tmp_path, capsys):
+    ensure_giorgio_config(tmp_path)
     write_script(tmp_path, "booldef", """
 PARAMS = {
     "flag": {"type": bool, "default": "yes"}
@@ -313,6 +351,7 @@ def run(context):
 
 
 def test_script_with_invalid_default(tmp_path):
+    ensure_giorgio_config(tmp_path)
     write_script(tmp_path, "invdef", """
 PARAMS = {
     "x": {"type": int, "default": "notanint"}
@@ -326,6 +365,7 @@ def run(context):
 
 
 def test_script_with_invalid_bool_default(tmp_path):
+    ensure_giorgio_config(tmp_path)
     write_script(tmp_path, "invbooldef", """
 PARAMS = {
     "flag": {"type": bool, "default": "maybe"}
@@ -339,6 +379,7 @@ def run(context):
 
 
 def test_script_with_env_default_missing(tmp_path):
+    ensure_giorgio_config(tmp_path)
     write_script(tmp_path, "envmiss", """
 PARAMS = {
     "x": {"type": str, "default": "${NOT_SET}", "required": True}
@@ -352,6 +393,7 @@ def run(context):
 
 
 def test_script_with_extra_cli_args(tmp_path, capsys):
+    ensure_giorgio_config(tmp_path)
     write_script(tmp_path, "extracli", """
 PARAMS = {
     "x": {"type": int, "default": 1}

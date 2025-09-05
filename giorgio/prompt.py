@@ -200,8 +200,6 @@ class ScriptFinder:
         stack: List[_Node] = []
         path_parts: List[str] = []
 
-        dir_symbol = self.dir_symbol
-        script_symbol = self.script_symbol
         choice_separator = self.choice_separator
         back_symbol = self.back_symbol
         back_choice = f"{back_symbol}{choice_separator}.."
@@ -421,7 +419,7 @@ def _prompt_choices(
         Choice(
             title=str(c),
             value=c,
-            checked=c in default if multiple else None
+            checked=(default is not None and c in default) if multiple else None
         )
         for c in choices
     ]

@@ -7,6 +7,7 @@ import typer
 
 from .execution_engine import ExecutionEngine
 from .project_manager import initialize_project, create_script
+from .ai_client import AIScriptingClient
 
 
 # Initialize the CLI application
@@ -69,7 +70,10 @@ def _discover_ui_renderers() -> Dict[str, type]:
 
 @app.command()
 def init(
-    name: Optional[str] = typer.Option(None, "--name", "-n", help="Directory to initialize as a Giorgio project")
+    name: Optional[str] = typer.Argument(
+        None,
+        help="Directory to initialize as a Giorgio project"
+    )
 ):
     """
     Initialize a new Giorgio project.
@@ -103,27 +107,41 @@ def init(
 
 @app.command()
 def new(
-    script: str = typer.Argument(..., help="Name of the new script to scaffold")
+    script: str = typer.Argument(..., help="Name of the new script to scaffold"),
+    ai_prompt: Optional[str] = typer.Option(
+        None,
+        "--ai-prompt",
+        help="Instructions for AI to generate the script (requires AI config in .giorgio/config.json)",
+    ),
 ):
     """
     Scaffold a new automation script under scripts/<script>.
 
-    Creates a new directory under scripts/ with the specified name,
-    containing a basic script template.
+    If --ai is provided, uses an OpenAI-compatible API to generate the script
+    based on the given instructions and the AI configuration in config.json.
 
     :param script: Name of the new script folder to create under scripts/.
     :type script: str
+    :param ai: Optional instructions for AI to generate the script.
+    :type ai: Optional[str]
     :returns: None
     :rtype: None
     :raises FileExistsError: If the script directory already exists.
     """
-    
     project_root = Path(".").resolve()
-    
+
     try:
-        create_script(project_root, script)
-        typer.echo(f"Created new script '{script}'")
+        if ai_prompt:
+            client = AIScriptingClient(project_root)
+            script_content = client.generate_script(ai_prompt)
+
+            create_script(project_root, script, template=script_content)
+
+        else:
+            create_script(project_root, script)
     
+        typer.echo(f"Created new script '{script}'")
+
     except Exception as e:
         typer.echo(f"Error creating script: {e}")
         sys.exit(1)

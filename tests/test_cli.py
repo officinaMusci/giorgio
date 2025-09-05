@@ -12,7 +12,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from giorgio import cli
 from giorgio.cli import app
 from giorgio.cli import _parse_params, _discover_ui_renderers
-from giorgio.prompt import ScriptFinder
+
 
 runner = CliRunner()
 
@@ -34,7 +34,7 @@ def test_init_default(tmp_path, monkeypatch):
 def test_init_named(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     project_dir = tmp_path / "myproj"
-    result = runner.invoke(app, ["init", "--name", str(project_dir)])
+    result = runner.invoke(app, ["init", str(project_dir)])
     assert result.exit_code == 0
     assert project_dir.is_dir()
     assert (project_dir / "scripts").is_dir()
@@ -50,6 +50,24 @@ def test_new_script(tmp_path, monkeypatch):
     assert script_dir.is_dir()
     assert (script_dir / "script.py").exists()
 
+def test_new_script_ai(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    runner.invoke(app, ["init"])
+    # Patch AIScriptingClient to avoid real API call
+    class DummyAIScriptingClient:
+        def __init__(self, project_root):
+            pass
+        def generate_script(self, prompt):
+            assert prompt == "do something cool"
+            return "# ai generated script"
+    monkeypatch.setattr("giorgio.cli.AIScriptingClient", DummyAIScriptingClient)
+    result = runner.invoke(app, ["new", "aiscript", "--ai-prompt", "do something cool"])
+    assert result.exit_code == 0
+    script_dir = tmp_path / "scripts" / "aiscript"
+    assert script_dir.is_dir()
+    script_file = script_dir / "script.py"
+    assert script_file.exists()
+    assert "# ai generated script" in script_file.read_text()
 
 def test_new_exists_error(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
@@ -58,6 +76,30 @@ def test_new_exists_error(tmp_path, monkeypatch):
     result = runner.invoke(app, ["new", "dup"])
     assert result.exit_code != 0
     assert "Error creating script" in result.stdout
+
+def test_new_ai_config_error(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    runner.invoke(app, ["init"])
+    class DummyAIScriptingClient:
+        def __init__(self, project_root):
+            raise RuntimeError("bad config")
+    monkeypatch.setattr("giorgio.cli.AIScriptingClient", DummyAIScriptingClient)
+    result = runner.invoke(app, ["new", "failai", "--ai-prompt", "x"])
+    assert result.exit_code == 1
+    assert "bad config" in result.stdout
+
+def test_new_ai_generation_error(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    runner.invoke(app, ["init"])
+    class DummyAIScriptingClient:
+        def __init__(self, project_root):
+            pass
+        def generate_script(self, prompt):
+            raise Exception("ai fail")
+    monkeypatch.setattr("giorgio.cli.AIScriptingClient", DummyAIScriptingClient)
+    result = runner.invoke(app, ["new", "failai", "--ai-prompt", "x"])
+    assert result.exit_code == 1
+    assert "Error creating script: ai fail" in result.stdout
 
 
 def test_cli_run_and_parameters(tmp_path, monkeypatch):
