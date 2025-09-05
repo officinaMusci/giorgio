@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 1.5.1 (2025-09-05)
+
+### Fix
+
+- add support for loading environment variables from a .env file
+
 ## 1.5.0 (2025-09-05)
 
 ### Feat
