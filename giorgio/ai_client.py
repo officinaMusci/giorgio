@@ -491,22 +491,37 @@ You have to write a script using the Giorgio library.
         :rtype: str
         :raises FileNotFoundError: If README.md does not exist.
         """
-        readme_path = Path(__file__).parent.parent / "README.md"
-        if not readme_path.exists():
-            raise FileNotFoundError(f"README.md not found at {readme_path}")
+        readme_path = None
+        try:
+            import giorgio
+            pkg = getattr(giorgio, "__path__", None)
+            
+            if pkg and len(pkg) > 0:
+                pkg_path = Path(pkg[0])
+                candidate = pkg_path / "README.md"
+                if candidate.exists():
+                    readme_path = candidate
+            
+            if not readme_path:
+                candidate = Path(__file__).parent.parent / "README.md"
+                if candidate.exists():
+                    readme_path = candidate
+        
+        except Exception:
+            candidate = Path(__file__).parent.parent / "README.md"
+            if candidate.exists():
+                readme_path = candidate
+        
+        if not readme_path or not readme_path.exists():
+            raise FileNotFoundError(f"README.md not found at {readme_path or '[unknown path]'}")
 
         content = readme_path.read_text().strip()
-        
         start = "<!-- BEGIN GIORGIO_SCRIPT_ANATOMY -->"
         end = "<!-- END GIORGIO_SCRIPT_ANATOMY -->"
-        
         start_idx = content.find(start)
         end_idx = content.find(end)
-        
         if start_idx != -1 and end_idx != -1 and start_idx < end_idx:
-            # Extract only the section between the markers (excluding the markers themselves)
             return content[start_idx + len(start):end_idx].strip()
-        
         return content
 
     def _unwrap_script(self, response: str) -> str:
@@ -559,4 +574,15 @@ You have to write a script using the Giorgio library.
         script = client.ask(instructions)
         script = self._unwrap_script(script)
 
+        return script
+        if not exemples:
+            exemples.append(self._get_script_template_content())
+        for exemple in exemples:
+            client.with_example(exemple)
+
+        # Ask for the script
+        script = client.ask(instructions)
+        script = self._unwrap_script(script)
+
+        return script
         return script

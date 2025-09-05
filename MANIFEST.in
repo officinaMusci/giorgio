@@ -1,3 +1,4 @@
-include README.md LICENSE
+include README.md
+include LICENSE
 recursive-include giorgio *.yml *.json *.html
 recursive-include giorgio/templates *.py

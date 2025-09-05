@@ -47,6 +47,9 @@ cli = "giorgio.ui_cli:CLIUIRenderer"
 where = ["."]
 include = ["giorgio*"]
 
+[tool.setuptools]
+include-package-data = true
+
 [tool.commitizen]
 name = "cz_conventional_commits"
 tag_format = "$version"
