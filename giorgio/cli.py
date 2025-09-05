@@ -70,7 +70,10 @@ def _discover_ui_renderers() -> Dict[str, type]:
 
 @app.command()
 def init(
-    name: Optional[str] = typer.Option(None, "--name", "-n", help="Directory to initialize as a Giorgio project")
+    name: Optional[str] = typer.Argument(
+        None,
+        help="Directory to initialize as a Giorgio project"
+    )
 ):
     """
     Initialize a new Giorgio project.

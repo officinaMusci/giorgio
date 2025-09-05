@@ -34,7 +34,7 @@ def test_init_default(tmp_path, monkeypatch):
 def test_init_named(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     project_dir = tmp_path / "myproj"
-    result = runner.invoke(app, ["init", "--name", str(project_dir)])
+    result = runner.invoke(app, ["init", str(project_dir)])
     assert result.exit_code == 0
     assert project_dir.is_dir()
     assert (project_dir / "scripts").is_dir()
