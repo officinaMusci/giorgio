@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 1.5.4 (2025-09-05)
+
+### Fix
+
+- refactor README.md path resolution and update package data configuration in pyproject.toml
+
 ## 1.5.3 (2025-09-05)
 
 ### Fix
