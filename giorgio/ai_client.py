@@ -37,9 +37,9 @@ class ClientConfig:
     api_key: Optional[str] = field(default_factory=lambda: os.getenv("AI_API_KEY"))
     base_url: Optional[str] = None
     model: str = "gpt-4.1-mini"
-    temperature: float = 0.0
+    temperature: float = field(default_factory=lambda: float(os.getenv("AI_TEMPERATURE", "0.0")))
     request_timeout: Optional[float] = 60.0
-    max_output_tokens: Optional[int] = None
+    max_output_tokens: Optional[int] = field(default_factory=lambda: int(os.getenv("AI_MAX_TOKENS", "0")))
     instructor_mode: instructor.Mode = instructor.Mode.JSON
     max_retries: int = 2
 
@@ -337,13 +337,22 @@ You have to write a script using the Giorgio library.
         api_key = os.getenv("AI_API_KEY")
         api_url = os.getenv("AI_BASE_URL")
         model = os.getenv("AI_MODEL") or os.getenv("AI_API_MODEL")  # fallback for legacy env var
+        temperature = float(os.getenv("AI_TEMPERATURE", "0.0"))
+        max_tokens_env = os.getenv("AI_MAX_TOKENS")
+        max_output_tokens = int(max_tokens_env) if max_tokens_env is not None else None
 
         if not (api_key and api_url and model):
             raise RuntimeError(
                 "Missing AI config: set AI_API_KEY, AI_BASE_URL, and AI_MODEL in your environment or .env file."
             )
 
-        cfg = ClientConfig(api_key=api_key, base_url=api_url, model=model)
+        cfg = ClientConfig(
+            api_key=api_key,
+            base_url=api_url,
+            model=model,
+            temperature=temperature,
+            max_output_tokens=max_output_tokens,
+        )
         self.ai_client = AIClient(cfg)
         self.project_root = project_root
     

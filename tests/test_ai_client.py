@@ -26,10 +26,21 @@ def dummy_config():
 
 def test_client_config_defaults(monkeypatch):
     monkeypatch.setenv("AI_API_KEY", "env-key")
+    monkeypatch.delenv("AI_TEMPERATURE", raising=False)
+    monkeypatch.delenv("AI_MAX_TOKENS", raising=False)
     cfg = ClientConfig()
     assert cfg.api_key == "env-key"
     assert cfg.model == "gpt-4.1-mini"
     assert cfg.temperature == 0.0
+    assert cfg.max_output_tokens == 0
+
+def test_client_config_env_temperature_and_max_tokens(monkeypatch):
+    monkeypatch.setenv("AI_API_KEY", "env-key")
+    monkeypatch.setenv("AI_TEMPERATURE", "0.7")
+    monkeypatch.setenv("AI_MAX_TOKENS", "1234")
+    cfg = ClientConfig()
+    assert cfg.temperature == 0.7
+    assert cfg.max_output_tokens == 1234
 
 def test_message_dataclass():
     msg = Message(role="user", content="Hello")
