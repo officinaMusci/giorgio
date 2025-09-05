@@ -43,13 +43,16 @@ giorgio = "giorgio.cli:app"
 [project.entry-points."giorgio.ui_renderers"]
 cli = "giorgio.ui_cli:CLIUIRenderer"
 
+[tool.setuptools]
+include-package-data = true
+
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["giorgio*"]
 exclude = ["tests*", "examples*"]
 
-[tool.setuptools.package-data]
-"giorgio" = ["README.md", "LICENSE"]
+[tool.setuptools.data-files]
+"share/doc/giorgio" = ["README.md", "LICENSE"]
 
 [tool.commitizen]
 name = "cz_conventional_commits"

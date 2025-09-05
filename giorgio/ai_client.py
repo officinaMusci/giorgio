@@ -2,6 +2,7 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
+from importlib.metadata import distribution
 import re
 from typing import (
     Any,
@@ -480,34 +481,44 @@ You have to write a script using the Giorgio library.
         ).ask() or []
 
         return selected
+    
+    def _find_readme() -> Path:
+        """
+        Find the README.md file in the package distribution or fallback to the
+        parent directory.
+        """
+        dist = distribution("giorgio")
+        for f in dist.files or []:
+            if f.name == "README.md" and "share/doc/giorgio" in str(f).replace("\\", "/"):
+                return Path(dist.locate_file(f))
+        
+        p = Path(__file__).resolve().parents[1] / "README.md"
+        
+        if p.is_file():
+            return p
+        
+        raise FileNotFoundError("README.md introuvable (data-files + fallback dev).")
 
     def _get_script_anatomy_content(self) -> str:
         """
         Get the project's README.md script anatomy section for context.
-        Only extract the section between <!-- BEGIN GIORGIO_SCRIPT_ANATOMY --> and <!-- END GIORGIO_SCRIPT_ANATOMY -->.
+        Only extract the section between <!-- BEGIN GIORGIO_SCRIPT_ANATOMY -->
+        and <!-- END GIORGIO_SCRIPT_ANATOMY -->.
 
         :returns: The content of the script anatomy section in README.md.
         :rtype: str
         :raises FileNotFoundError: If README.md does not exist.
         """
-        # Try to locate README.md: prefer package dir, else parent dir
-        try:
-            from importlib.resources import files
-            readme_path = files("giorgio") / "README.md"
+        content = self._find_readme().read_text().strip()
         
-        except Exception:
-            readme_path = Path(__file__).parent.parent / "README.md"
-
-        if not readme_path.exists():
-            raise FileNotFoundError(f"README.md not found at {readme_path}")
-
-        content = readme_path.read_text().strip()
         start = "<!-- BEGIN GIORGIO_SCRIPT_ANATOMY -->"
         end = "<!-- END GIORGIO_SCRIPT_ANATOMY -->"
         start_idx = content.find(start)
         end_idx = content.find(end)
+        
         if start_idx != -1 and end_idx != -1 and start_idx < end_idx:
             return content[start_idx + len(start):end_idx].strip()
+        
         return content
 
     def _unwrap_script(self, response: str) -> str:
