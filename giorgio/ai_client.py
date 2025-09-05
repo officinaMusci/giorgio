@@ -491,29 +491,21 @@ You have to write a script using the Giorgio library.
         :rtype: str
         :raises FileNotFoundError: If README.md does not exist.
         """
-        readme_path = None
+        # Try to locate README.md: prefer package dir, else parent dir
         try:
             import giorgio
-            pkg = getattr(giorgio, "__path__", None)
             
-            if pkg and len(pkg) > 0:
-                pkg_path = Path(pkg[0])
-                candidate = pkg_path / "README.md"
-                if candidate.exists():
-                    readme_path = candidate
+            pkg_path = Path(getattr(giorgio, "__path__", [None])[0] or "")
+            readme_path = pkg_path / "README.md"
             
-            if not readme_path:
-                candidate = Path(__file__).parent.parent / "README.md"
-                if candidate.exists():
-                    readme_path = candidate
+            if not readme_path.exists():
+                readme_path = Path(__file__).parent.parent / "README.md"
         
         except Exception:
-            candidate = Path(__file__).parent.parent / "README.md"
-            if candidate.exists():
-                readme_path = candidate
-        
-        if not readme_path or not readme_path.exists():
-            raise FileNotFoundError(f"README.md not found at {readme_path or '[unknown path]'}")
+            readme_path = Path(__file__).parent.parent / "README.md"
+
+        if not readme_path.exists():
+            raise FileNotFoundError(f"README.md not found at {readme_path}")
 
         content = readme_path.read_text().strip()
         start = "<!-- BEGIN GIORGIO_SCRIPT_ANATOMY -->"
