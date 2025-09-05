@@ -45,7 +45,11 @@ cli = "giorgio.ui_cli:CLIUIRenderer"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["giorgio*", "README.md", "LICENSE"]
+include = ["giorgio*"]
+exclude = ["tests*", "examples*"]
+
+[tool.setuptools.package-data]
+"giorgio" = ["README.md", "LICENSE"]
 
 [tool.commitizen]
 name = "cz_conventional_commits"
