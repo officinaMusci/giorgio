@@ -1,5 +1,7 @@
 # Giorgio - Automation Framework
 
+*A lightweight, extensible micro‑framework for fast, friendly automation scripts.*
+
 <p>
     <!-- ALL-CONTRIBUTORS-BADGE:START - Do not remove or modify this section -->
     <a href="https://pypi.org/project/giorgio">
@@ -16,221 +18,375 @@
     </a>
 </p>
 
-Giorgio is a lightweight, extensible Python micro-framework designed to scaffold, execute, and manage automation scripts. It offers both interactive and automated modes, supports dynamic parameter prompts, and features pluggable UI renderers for a customizable experience—all with minimal setup and boilerplate.
+Giorgio helps you scaffold, run, and compose automation scripts—from one‑off utilities to ambitious prototypes—without the ceremony. Think of it as a courteous digital butler: it asks the right questions, remembers your preferences, and carries out your instructions with minimal fuss.
+
+---
+
+## Table of contents
+
+- [Giorgio - Automation Framework](#giorgio---automation-framework)
+  - [Table of contents](#table-of-contents)
+  - [Why Giorgio?](#why-giorgio)
+  - [Features](#features)
+  - [Installation](#installation)
+  - [Quick start](#quick-start)
+    - [Initialize a project](#initialize-a-project)
+    - [Scaffold a script](#scaffold-a-script)
+    - [Generate a script with AI (vibe‑coding)](#generate-a-script-with-ai-vibecoding)
+    - [Run interactively or automatically](#run-interactively-or-automatically)
+  - [Project layout](#project-layout)
+  - [Script anatomy](#script-anatomy)
+    - [1. CONFIG](#1-config)
+    - [2. PARAMS](#2-params)
+    - [3. `run(context)`](#3-runcontext)
+    - [The `Context` API](#the-context-api)
+  - [Composing automations](#composing-automations)
+  - [Configuration \& environment variables](#configuration--environment-variables)
+  - [CLI reference](#cli-reference)
+  - [Scheduling (Cron / Task Scheduler)](#scheduling-cron--task-scheduler)
+  - [Tips \& best practices](#tips--best-practices)
+  - [Contributing](#contributing)
+  - [License](#license)
+
+---
+
+## Why Giorgio?
+
+Script files are quick to write—until they aren’t. Once you add parameters, validation, prompts, environment variables, and a touch of UX, the "quick script" becomes an accidental framework. Giorgio gives that structure to you from the start: a clean scaffold, a type‑safe parameter system, an interactive runner, and an optional AI‑powered script generator that turns plain‑language ideas into working code.
+
+**Use Giorgio when you want:**
+
+- Rapid local automations with a consistent shape.
+- Interactive runs that ask for what’s missing, or non‑interactive runs suitable for Cron.
+- A clear migration path from small scripts to reusable building blocks.
+- To generate boilerplate (or whole scripts) from a description using any OpenAI‑compatible API.
 
 ## Features
 
-- **Instant project scaffolding** with a best-practice directory layout.
-- **Script generator** for rapid creation of parameterized automation scripts.
-- **Flexible execution modes**: interactive CLI with dynamic prompts and live output, or fully automated runs.
-- **Type-safe parameter system** supporting custom types, validation, and runtime parameter requests.
-- **Seamless environment variable support** for dynamic configuration.
-- **Composable automation**: easily invoke scripts from within other scripts.
-- **Pluggable UI renderers** for customizing the interactive experience.
-- **Minimal setup, maximum extensibility**—configure only what you need.
+- **Instant scaffolding** with a best‑practice directory layout.
+- **Script generator** from templates or via *vibe‑coding* using an OpenAI‑compatible API.
+- **Interactive CLI** with dynamic prompts and live output, or **fully automated** runs.
+- **Type‑safe parameters** with custom types, choices, and validation.
+- **Environment variable** placeholders and `.env` loading.
+- **Composable automation**: call other scripts from your script.
+- **Pluggable UI renderers** for tailored interactive experiences.
+- **Minimal setup, maximum extensibility**: configure only what you need.
 
 ## Installation
 
-Install Giorgio from PyPI:
+Giorgio supports **Python 3.8+**. Installing with **pipx** keeps your CLI isolated and on your PATH:
 
 ```bash
+pipx install giorgio
+```
+
+Alternatively, use pip in a virtual environment:
+
+```bash
+python -m venv .venv
+source .venv/bin/activate  # Windows: .venv\\Scripts\\activate
 pip install giorgio
 ```
 
-For local development, consider cloning the repository and installing in editable mode:
+> **Note**
+> For AI‑powered generation you’ll need an OpenAI‑compatible endpoint and API key (see [Generate a script with AI](#generate-a-script-with-ai-vibe-coding)).
+
+## Quick start
+
+### Initialize a project
 
 ```bash
-git clone https://github.com/officinaMusci/giorgio.git
-cd giorgio
-pip install -e .
+giorgio init my_project
+cd my_project
 ```
 
-> ⚠️ Ensure your environment meets **Python ≥ 3.8**.
+Creates a clean structure with dedicated folders for **scripts**, shared **modules**, and configuration.
 
-## Quick Start
-
-### 1. Initialize a Project
-
-To kickstart your Giorgio project, run the following command in your terminal:
+### Scaffold a script
 
 ```bash
-giorgio init [--name PATH] # Defaults to current directory
+giorgio new cleanup_logs
 ```
 
-When you initialize a project, Giorgio sets up the recommended directory structure and essential files for you. It automatically generates an empty `.env` file for environment variables, along with a `.giorgio/config.json` file pre-populated with default settings, ensuring your project is ready for immediate development.
+This creates `scripts/cleanup_logs/script.py` with a ready‑to‑edit skeleton (`CONFIG`, `PARAMS`, and `run(context)`).
 
-This command creates the following structure:
+> **Note**
+> Scripts can also be created in subdirectories, e.g.:
+> 
+> ```bash
+> giorgio new cleansing/cleanup_logs
+> ```
+> 
+> This will create `scripts/cleansing/cleanup_logs/script.py`.
 
-```text
-.
-├── .env               # Optional environment variables (loaded on run/start)
-├── scripts/           # Your automation scripts
-├── modules/           # Shared Python modules for cross-script reuse
-└── .giorgio/          # Giorgio metadata (config.json)
-    └── config.json    # Tracks project version, module paths, etc.
-```
-
-### 2. Scaffold a New Script
-
-To create a new automation script, use the `new` command followed by your desired script name:
+### Generate a script with AI (vibe‑coding)
 
 ```bash
-giorgio new my_script
+giorgio new greet_user --ai-prompt "Create a script that prints a text provided as a parameter"
 ```
 
-When you scaffold a new script, Giorgio automatically creates a `scripts/my_script/` directory containing a starter `script.py` file. This file comes pre-populated with boilerplate sections for **CONFIG** and **PARAMS**, as well as a stubbed `run()` function, giving you a ready-to-edit foundation for your automation logic.
+When using `--ai-prompt`, Giorgio may also ask to include project modules or existing scripts as **context** to improve generation. The result follows Giorgio’s conventions and includes inline documentation.
 
-#### Script Development Guide
+**Environment** (typical):
 
-Your script should follow a specific structure to ensure compatibility with Giorgio's execution model. Here's a breakdown of the required components:
+You can set environment variables directly in your shell, or place them in your project’s `.env` file (recommended for local development):
+
+```bash
+export AI_API_KEY=...
+export AI_BASE_URL=https://my-endpoint.example/v1
+export AI_API_MODEL=my-favorite-model
+export AI_TEMPERATURE=0.2         # (optional) Controls randomness, default 0.0
+export AI_MAX_TOKENS=2048         # (optional) Max output tokens, default unlimited
+```
+
+Or in `.env`:
+
+```
+AI_API_KEY=...
+AI_BASE_URL=https://my-endpoint.example/v1
+AI_API_MODEL=my-favorite-model
+AI_TEMPERATURE=0.2
+AI_MAX_TOKENS=2048
+```
+
+### Run interactively or automatically
+
+**Interactive mode**: Prompts you to select a script, then asks for parameters.
+
+```bash
+giorgio start
+```
+
+**Automated (non-interactive) mode**: Runs the specified script directly. You must provide all required parameters (or ensure they have defaults).
+
+```bash
+giorgio run cleanup_logs --param days=30 --param log_dir=/var/logs
+```
+
+Use interactive mode for guided runs and parameter prompts; use non-interactive mode for automation and scripting (e.g., in Cron jobs).
+
+## Project layout
+
+After `giorgio init my_project`:
+
+```
+my_project/
+├─ .giorgio/config.json
+├─ modules/
+│  └─ __init__.py
+├─ scripts/
+└─ .env
+```
+
+<!-- BEGIN GIORGIO_SCRIPT_ANATOMY -->
+## Script anatomy
+
+Every Giorgio script follows a standard structure: **CONFIG**, **PARAMS**, and a `run(context)` function.
+
+### 1. CONFIG
+
+`CONFIG` is optional metadata shown in interactive mode.
 
 ```python
-from giorgio.execution_engine import Context, GiorgioCancellationError
-
 CONFIG = {
-    "name": "My Script",
-    "description": ""
+    "name": "Cleanup Logs",
+    "description": "Remove old log files from a target directory."
 }
-
-PARAMS = { }
-
-
-def run(context: Context):
-    try:
-        # Your script logic goes here
-        print("Running the script...")
-    
-    except GiorgioCancellationError:
-        print("Execution was cancelled by the user.")
 ```
 
-##### `CONFIG` (optional)
+### 2. PARAMS
 
-The `CONFIG` section allows you to define metadata for your script, such as its name and description. This information is used in the interactive UI to help users understand what the script does.
+`PARAMS` declares **all inputs** the script needs. Giorgio validates types, applies defaults, and—if running interactively—prompts for anything missing.
 
-##### `PARAMS` (required)
+Supported attributes:
 
-The `PARAMS` section defines all the parameters your script requires. Each parameter can specify its `type`, `default` value, `description`, and optional `validation` logic. Giorgio supports standard Python types (`str`, `int`, `float`, `bool`, `Path`) as well as custom classes—if you provide a custom type, Giorgio will instantiate it using the supplied value.
+- `type` *(required)* — validates and converts the value (e.g. `str`, `int`, `bool`, `Path`, or custom classes).
+- `default` *(optional)* — a fallback value; supports `${VAR_NAME}` placeholders for environment variables.
+- `description` *(optional)* — a short help text.
+- `choices` *(optional)* — restricts input to a predefined list of values.
+- `multiple` *(optional)* — allow selection of multiple values (with `choices`).
+- `required` *(optional)* — mark the parameter as mandatory.
+- `validation` *(optional)* — a function that returns `True` or an error message.
 
-You can enhance parameters with:
-
-- **default**: Sets a fallback value if none is provided. Supports static values or environment variable placeholders using `${VAR_NAME}` syntax, which are resolved from your `.env` file at runtime.
-- **choices**: Restricts input to a predefined list of valid options.
-- **multiple**: (used with `choices`) Allows users to select more than one option.
-
-Custom validation is supported via a `validation` function that returns `True` or an error message.
-
-This flexible system ensures your scripts are type-safe, user-friendly, and easily configurable for both interactive and automated workflows.
+Example:
 
 ```python
+from pathlib import Path
+
 PARAMS = {
     "confirm": {
         "type": bool,
         "default": False,
         "description": "Whether to confirm the action.",
     },
-    "count": {
+    "days": {
         "type": int,
-        "default": 1,
-        "description": "Number of times to repeat the action.",
-        "validation": lambda x: x > 0 or "Count must be a positive integer."
+        "default": 30,
+        "description": "Delete files older than N days.",
+        "validation": lambda x: x > 0 or "Days must be a positive integer."
     },
-    "path": {
+    "log_dir": {
         "type": Path,
-        "description": "Path to your file.",
+        "description": "Directory containing log files.",
         "required": True
+    },
+    "level": {
+        "type": str,
+        "choices": ["debug", "info", "warning", "error"],
+        "description": "Logging verbosity.",
     },
     "options": {
         "type": str,
-        "choices": ["optA", "optB", "optC", "optD"],
-        "description": "Select one or more options.",
-        "multiple": True
-    },
-    "custom": {
-        "type": MyCustomClass,
-        "description": "An instance of MyCustomClass.",
+        "choices": ["dry_run", "force"],
+        "multiple": True,
+        "description": "Optional flags."
     },
     "environment_var": {
         "type": str,
         "default": "${MY_ENV_VAR}",
-        "description": "An environment variable value.",
+        "description": "Value read from env if set."
     }
 }
 ```
 
-##### `run(context)`
+### 3. `run(context)`
 
-The `run(context)` function serves as the main entry point for your script. It receives a `Context` object, which provides convenient access to everything your script needs:
+`run(context)` is the script’s entry point. It receives a `Context` object providing everything needed at runtime.
 
-- **Parameter values:** Retrieve user-supplied or defaulted parameters via `context.params`.
-- **Environment variables:** Access environment variables loaded from `.env` or the system using `context.env`.
-- **Dynamic parameter prompting:** Use `context.add_params()` to request additional input from the user at runtime (available only in interactive mode).
-- **Script composition:** Invoke other Giorgio scripts programmatically with `context.call_script()`.
+```python
+from pathlib import Path
+from giorgio.execution_engine import Context, GiorgioCancellationError
 
-This design enables your scripts to be both flexible and composable, supporting interactive workflows and automation scenarios with minimal boilerplate.
+
+def run(context: Context):
+    try:
+        log_dir: Path = context.params["log_dir"]
+        days: int = context.params["days"]
+
+        print(f"Cleaning logs older than {days} days in {log_dir}…")
+
+        # Example of dynamic prompting (interactive mode only)
+        context.add_params({
+            "confirm": {
+                "type": bool,
+                "description": "Are you sure you want to delete these files?",
+                "default": False,
+            }
+        })
+
+        if context.params["confirm"]:
+            # Compose with another Giorgio script
+            context.call_script("delete_files", {"target_dir": log_dir})
+            print("Cleanup completed.")
+        else:
+            print("Operation cancelled.")
+
+    except GiorgioCancellationError:
+        print("Script execution cancelled by the user.")
+```
+
+### The `Context` API
+
+The `Context` object exposes:
+
+* **Validated parameters** — `context.params["key"]`.
+* **Environment variables** — `context.env["VAR"]` (loads from `.env` and the system).
+* **Dynamic prompting** — `context.add_params({...})` to ask for more inputs at runtime (interactive mode only).
+* **Composition** — `context.call_script(name, params)` to run other Giorgio scripts programmatically.
+* **Logging & output** — standard `print()` works; advanced loggers can be wired by UI renderers.
+<!-- END GIORGIO_SCRIPT_ANATOMY -->
+
+## Composing automations
+
+Scripts are building blocks. You can invoke one script from another to create small, readable steps that add up to robust flows.
 
 ```python
 def run(context):
-    try:
-        # Get the path parameter
-        path: Path = context.params["path"]
-
-        # Grab an environment variable (or fall back to a default)
-        username = context.env.get("USER", "mysterious_automator")
-        print(f"👋 Hello, {username}! Let's see what's in {path}...")
-
-        # Find all .txt files and prompt the user to pick their favorite
-        context.add_params({
-            "favorite_file": {
-                "type": Path,
-                "description": "Which text file deserves your attention today?",
-                "choices": txt_files,
-                "required": True
-            }
-        })
-        favorite = context.params["favorite_file"]
-        print(f"🎉 You picked: {favorite.name}")
-
-        # Call another script to celebrate
-        context.call_script("celebrate_file", {"file": favorite})
-
-    except GiorgioCancellationError:
-        print("🚨 Script execution cancelled! Maybe next time...")
+    # Normalize inputs in one script…
+    context.call_script("normalize_dataset", {"src": "./raw.csv"})
+    # …then pass results into the next one.
+    context.call_script("train_model", {"epochs": 10, "lr": 0.001})
 ```
 
-### 3. Run Scripts
+Composition keeps each script focused and testable while enabling richer automations.
 
-#### Non-interactive (for automation):
+## Configuration & environment variables
 
-To execute your script non-interactively, you can use the `run` command followed by the script name and any required parameters:
+Giorgio reads environment variables from the OS and, if present, from a local `.env` file at project root. Within `PARAMS`, you may reference variables using `${VAR_NAME}` in `default` values; these expand at runtime.
 
-```bash
-giorgio run my_script \
-  --param input_file=./data.txt \
-  --param count=5
+**Supported AI environment variables:**
+
+- `AI_API_KEY` — API key for your OpenAI-compatible endpoint (**required**)
+- `AI_BASE_URL` — Base URL for the API (**required**)
+- `AI_MODEL` or `AI_API_MODEL` — Model name (**required**)
+- `AI_TEMPERATURE` — *(optional)* Controls randomness (float, default: 0.0)
+- `AI_MAX_TOKENS` — *(optional)* Maximum output tokens (int, default: unlimited)
+
+Example `.env`:
+
+```
+DATA_DIR=./data
+MY_ENV_VAR=hello
 ```
 
-All required parameters must be provided when running scripts non-interactively. The command supports boolean flags, lists, and allows you to use environment variable placeholders (such as `${VAR}`) as default values for parameters.
+Example `PARAMS` default using an env placeholder:
 
-#### Interactive (exploratory):
-
-For an interactive experience, start Giorgio in interactive mode:
-
-```bash
-giorgio start [--ui RENDERER]
+```python
+"data_dir": {
+    "type": Path,
+    "default": "${DATA_DIR}",
+    "description": "Where datasets are stored."
+}
 ```
 
-When running in interactive mode, Giorgio presents a menu of available scripts and guides you through each required parameter, providing validation, default values, and helpful descriptions. Output from your script is streamed live to your terminal, and you can safely abort execution with Ctrl+C.
+## CLI reference
 
-Giorgio supports **pluggable UI renderers** for interactive mode. By default, the CLI renderer is used, but you can specify another renderer with the `--ui` option if additional renderers are installed. To see available renderers, run:
+```
+giorgio init <project_name>
+    Create a new Giorgio project (folders for scripts, modules, config).
 
-```bash
-giorgio start --help
+giorgio new <script_name> [--ai-prompt "…"]
+    Scaffold a new script. With --ai-prompt, generate code via an OpenAI‑compatible API.
+
+giorgio start
+    Launch interactive mode. Select a script; Giorgio prompts for missing params.
+
+giorgio run <script_name> --param key=value [--param key=value ...]
+    Run non‑interactively (suitable for Cron). Provide all required params.
+
+giorgio --help
+    Show general help and options.
 ```
 
-To add new UI renderers (such as a GUI or web interface), install a compatible plugin that registers itself under the `giorgio.ui_renderers` entry point. Once installed, the new renderer will be available for selection via the `--ui` flag.
+> **Tip**
+> Use `--param` repeatedly to pass multiple key/value pairs.
 
-This extensibility allows you to tailor the interactive experience to your workflow, whether you prefer a classic terminal UI or a custom interface.
+## Scheduling (Cron / Task Scheduler)
+
+**Cron (Linux/macOS):**
+
+```
+# Run every night at 02:30
+30 2 * * * cd /path/to/my_project && /usr/bin/env giorgio run cleanup_logs \
+  --param days=30 --param log_dir=/var/logs >> cron.log 2>&1
+```
+
+**Windows Task Scheduler:** create a task that executes:
+
+```
+C:\\Path\\To\\Python\\Scripts\\giorgio.exe run cleanup_logs --param days=30 --param log_dir=C:\\Logs
+```
+
+## Tips & best practices
+- **Keep scripts small and focused.** Compose multiple scripts for larger automation flows to maximize clarity and reusability.
+- **Declare all inputs in `PARAMS`.** Avoid using implicit globals; explicit parameters improve validation and documentation.
+- **Leverage `choices` and `validation`.** Define allowed values and validation logic to catch errors early and guide users.
+- **Encapsulate reusable logic in `modules/`.** Place shared functions and utilities in the `modules/` directory and import them into your scripts.
+- **Use `context.add_params()` for dynamic prompting.** Prefer Giorgio’s built-in parameter prompting over other package methods or native Python functions like `input()`. This ensures consistent UX, validation, and compatibility with both interactive and automated runs.
+- **Reserve AI generation for boilerplate or drafts.** Use AI-powered script generation to accelerate prototyping, but always review and refine generated code before use.
+- **Handle secrets securely.** Store API keys and sensitive data in your `.env` file (excluded from version control) or your OS keychain—never hard-code them.
+- **Review AI-generated code before production use.** Always inspect and test code generated by AI before deploying in critical environments.
+- **Avoid logging secrets.** Redact or exclude sensitive information from logs to prevent accidental exposure.
 
 ## Contributing
 
