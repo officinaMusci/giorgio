@@ -481,22 +481,32 @@ You have to write a script using the Giorgio library.
         ).ask() or []
 
         return selected
-    
-    def _find_readme() -> Path:
+
+    def _find_readme(self) -> Path:
         """
         Find the README.md file in the package distribution or fallback to the
-        parent directory.
+        parent directory or project root.
         """
-        dist = distribution("giorgio")
-        for f in dist.files or []:
-            if f.name == "README.md" and "share/doc/giorgio" in str(f).replace("\\", "/"):
-                return Path(dist.locate_file(f))
-        
+        try:
+            dist = distribution("giorgio")
+            for f in dist.files or []:
+                if f.name == "README.md" and "share/doc/giorgio" in str(f).replace("\\", "/"):
+                    return Path(dist.locate_file(f))
+        except Exception:
+            pass  # Ignore if not installed as a package
+
+        # Try parent directory of this file
         p = Path(__file__).resolve().parents[1] / "README.md"
-        
         if p.is_file():
             return p
-        
+
+        # Fallback: try project root (self.project_root/README.md)
+        project_readme = getattr(self, "project_root", None)
+        if project_readme:
+            project_readme = Path(project_readme) / "README.md"
+            if project_readme.is_file():
+                return project_readme
+
         raise FileNotFoundError("README.md introuvable (data-files + fallback dev).")
 
     def _get_script_anatomy_content(self) -> str:
@@ -510,7 +520,7 @@ You have to write a script using the Giorgio library.
         :raises FileNotFoundError: If README.md does not exist.
         """
         content = self._find_readme().read_text().strip()
-        
+
         start = "<!-- BEGIN GIORGIO_SCRIPT_ANATOMY -->"
         end = "<!-- END GIORGIO_SCRIPT_ANATOMY -->"
         start_idx = content.find(start)
@@ -571,15 +581,4 @@ You have to write a script using the Giorgio library.
         script = client.ask(instructions)
         script = self._unwrap_script(script)
 
-        return script
-        if not exemples:
-            exemples.append(self._get_script_template_content())
-        for exemple in exemples:
-            client.with_example(exemple)
-
-        # Ask for the script
-        script = client.ask(instructions)
-        script = self._unwrap_script(script)
-
-        return script
         return script
