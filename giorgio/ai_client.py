@@ -7,7 +7,6 @@ from typing import (
     Any,
     Dict,
     Generic,
-    Iterable,
     List,
     Literal,
     Optional,
@@ -493,13 +492,8 @@ You have to write a script using the Giorgio library.
         """
         # Try to locate README.md: prefer package dir, else parent dir
         try:
-            import giorgio
-            
-            pkg_path = Path(getattr(giorgio, "__path__", [None])[0] or "")
-            readme_path = pkg_path / "README.md"
-            
-            if not readme_path.exists():
-                readme_path = Path(__file__).parent.parent / "README.md"
+            from importlib.resources import files
+            readme_path = files("giorgio") / "README.md"
         
         except Exception:
             readme_path = Path(__file__).parent.parent / "README.md"
