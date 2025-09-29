@@ -507,7 +507,7 @@ You have to write a script using the Giorgio library.
             if project_readme.is_file():
                 return project_readme
 
-        raise FileNotFoundError("README.md introuvable (data-files + fallback dev).")
+        raise FileNotFoundError("README.md not found.")
 
     def _get_script_anatomy_content(self) -> str:
         """
