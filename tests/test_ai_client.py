@@ -22,7 +22,7 @@ from giorgio.ai_client import (
 
 @pytest.fixture
 def dummy_config():
-    return AIClientConfig(api_key="test-key", base_url="http://test", model="gpt-test")
+    return AIClientConfig(api_key="test-key", base_url="http://test", model="codestral/22b")
 
 def test_client_config_defaults(monkeypatch):
     monkeypatch.setenv("AI_API_KEY", "env-key")
@@ -30,7 +30,7 @@ def test_client_config_defaults(monkeypatch):
     monkeypatch.delenv("AI_MAX_TOKENS", raising=False)
     cfg = AIClientConfig()
     assert cfg.api_key == "env-key"
-    assert cfg.model == "gpt-4.1-mini"
+    assert cfg.model == "codestral/22b"
     assert cfg.temperature == 0.0
     assert cfg.max_output_tokens == 0
 
@@ -131,10 +131,10 @@ def test_aiscriptingclient_from_project_config(monkeypatch):
     # Set required env vars for AI config
     monkeypatch.setenv("AI_API_KEY", "tok")
     monkeypatch.setenv("AI_BASE_URL", "http://api")
-    monkeypatch.setenv("AI_MODEL", "gpt-test")
+    monkeypatch.setenv("AI_MODEL", "codestral/22b")
     client = AIScriptingClient(Path("."))
     assert isinstance(client, AIScriptingClient)
-    assert client.ai_client.config.model == "gpt-test"
+    assert client.ai_client.config.model == "codestral/22b"
 
 def test_aiscriptingclient_from_project_config_missing(monkeypatch):
     # Unset env vars to simulate missing config
@@ -192,7 +192,7 @@ def test_aiscriptingclient_generate_script(monkeypatch, tmp_path):
     # Set required env vars for AI config
     monkeypatch.setenv("AI_API_KEY", "tok")
     monkeypatch.setenv("AI_BASE_URL", "http://api")
-    monkeypatch.setenv("AI_MODEL", "gpt-test")
+    monkeypatch.setenv("AI_MODEL", "codestral/22b")
 
     client = AIScriptingClient(tmp_path)
     client.ai_client = DummyAIClient()
@@ -306,7 +306,7 @@ Outro text
     # Set required env vars for AI config to avoid RuntimeError
     monkeypatch.setenv("AI_API_KEY", "tok")
     monkeypatch.setenv("AI_BASE_URL", "http://api")
-    monkeypatch.setenv("AI_MODEL", "gpt-test")
+    monkeypatch.setenv("AI_MODEL", "codestral/22b")
 
     client = AIScriptingClient(tmp_path)
     result = client._get_script_anatomy_content()
