@@ -14,7 +14,7 @@ sys.modules["pydantic"] = __import__("pydantic")
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from giorgio.ai_client import (
-    ClientConfig,
+    AIClientConfig,
     Message,
     AIClient,
     AIScriptingClient,
@@ -22,13 +22,13 @@ from giorgio.ai_client import (
 
 @pytest.fixture
 def dummy_config():
-    return ClientConfig(api_key="test-key", base_url="http://test", model="gpt-test")
+    return AIClientConfig(api_key="test-key", base_url="http://test", model="gpt-test")
 
 def test_client_config_defaults(monkeypatch):
     monkeypatch.setenv("AI_API_KEY", "env-key")
     monkeypatch.delenv("AI_TEMPERATURE", raising=False)
     monkeypatch.delenv("AI_MAX_TOKENS", raising=False)
-    cfg = ClientConfig()
+    cfg = AIClientConfig()
     assert cfg.api_key == "env-key"
     assert cfg.model == "gpt-4.1-mini"
     assert cfg.temperature == 0.0
@@ -38,7 +38,7 @@ def test_client_config_env_temperature_and_max_tokens(monkeypatch):
     monkeypatch.setenv("AI_API_KEY", "env-key")
     monkeypatch.setenv("AI_TEMPERATURE", "0.7")
     monkeypatch.setenv("AI_MAX_TOKENS", "1234")
-    cfg = ClientConfig()
+    cfg = AIClientConfig()
     assert cfg.temperature == 0.7
     assert cfg.max_output_tokens == 1234
 

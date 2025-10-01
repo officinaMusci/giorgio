@@ -32,7 +32,7 @@ T = TypeVar("T")
 
 
 @dataclass
-class ClientConfig:
+class AIClientConfig:
     """Configuration settings for the AI backend via Instructor."""
     api_key: Optional[str] = field(default_factory=lambda: os.getenv("AI_API_KEY"))
     base_url: Optional[str] = None
@@ -55,13 +55,13 @@ class AIClient(Generic[T]):
     """
     High-level AI client using Instructor + Pydantic for typed prompts.
     """
-    
-    def __init__(self, config: ClientConfig) -> None:
+
+    def __init__(self, config: AIClientConfig) -> None:
         """
         Initialize the AIClient with configuration and raw OpenAI client.
 
         :param config: Settings for API key, model, retries, etc.
-        :type config: ClientConfig
+        :type config: AIClientConfig
         :returns: None
         :rtype: None
         """
@@ -357,7 +357,7 @@ You have to write a script using the Giorgio library.
                 "Missing AI config: set AI_API_KEY, AI_BASE_URL, and AI_MODEL in your environment or .env file."
             )
 
-        cfg = ClientConfig(
+        cfg = AIClientConfig(
             api_key=api_key,
             base_url=api_url,
             model=model,
