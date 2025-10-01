@@ -36,7 +36,7 @@ class AIClientConfig:
     """Configuration settings for the AI backend via Instructor."""
     api_key: Optional[str] = field(default_factory=lambda: os.getenv("AI_API_KEY"))
     base_url: Optional[str] = None
-    model: str = "gpt-4.1-mini"
+    model: str = "codestral/22b"
     temperature: float = field(default_factory=lambda: float(os.getenv("AI_TEMPERATURE", "0.0")))
     request_timeout: Optional[float] = 60.0
     max_output_tokens: Optional[int] = field(default_factory=lambda: int(os.getenv("AI_MAX_TOKENS", "0")))
