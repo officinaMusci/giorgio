@@ -189,8 +189,8 @@ def run(
     try:
         engine.run_script(script, cli_args=cli_args)
     
-    except Exception as e:
-        typer.echo(f"Error: {e}")
+    except KeyboardInterrupt:
+        typer.echo("\nExecution interrupted by user.")
         sys.exit(1)
 
 
@@ -279,10 +279,6 @@ def start(
     
     except KeyboardInterrupt:
         typer.echo("\nExecution interrupted by user.")
-        sys.exit(1)
-    
-    except Exception as e:
-        typer.echo(f"Error: {e}")
         sys.exit(1)
 
 
