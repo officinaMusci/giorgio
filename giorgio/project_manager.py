@@ -72,7 +72,8 @@ def initialize_project(root: Path, project_name: str = None) -> None:
 
     default_config = {
         "giorgio_version": current_version,
-        "module_paths": ["modules"]
+        "module_paths": ["modules"],
+        "logging": {"level": "warning"}
     }
     
     if project_name:

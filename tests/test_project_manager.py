@@ -55,6 +55,8 @@ def test_initialize_project_creates_structure(temp_project):
     data = json.loads(config_file.read_text(encoding="utf-8"))
     assert "giorgio_version" in data, "giorgio_version not in config.json"
     assert "module_paths" in data, "module_paths not in config.json"
+    assert "logging" in data, "logging not in config.json"
+    assert data.get("logging") == {"level": "warning"}, "Default logging level should be 'warning'"
     assert data.get("module_paths") == ["modules"]
     assert data.get("project_name") == "TestProject"
 

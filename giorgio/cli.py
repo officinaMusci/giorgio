@@ -4,6 +4,9 @@ from typing import List, Dict, Any, Optional
 from importlib.metadata import entry_points
 
 import typer
+from pathlib import Path
+
+from .logconfig import configure_logging
 
 from .execution_engine import ExecutionEngine
 from .project_manager import initialize_project, create_script
@@ -11,6 +14,10 @@ from .ai_client import AIScriptingClient
 
 
 # Initialize the CLI application
+project_root = Path(".").resolve()
+# Configure logging early so Typer/Click honor the project's logging level
+configure_logging(project_root=project_root)
+
 app = typer.Typer(help="Giorgio automation framework CLI")
 
 

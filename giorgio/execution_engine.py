@@ -3,6 +3,7 @@ import sys
 import importlib.util
 from pathlib import Path
 import signal
+import logging
 from types import MappingProxyType
 from typing import Any, Dict, Optional, Callable, List
 
@@ -51,6 +52,10 @@ class Context:
         self.env = env.copy()
         self._add_params_callback = add_params_callback
         self._engine = engine
+        # Provide a logger for scripts via context.logger. Default to the
+        # top-level 'giorgio' logger; callers may override to a script-specific
+        # child logger before running the script.
+        self.logger = logging.getLogger("giorgio")
 
     def add_params(self, schema: Dict[str, Dict[str, Any]]) -> None:
         """
@@ -329,6 +334,15 @@ class ExecutionEngine:
                         raise RuntimeError(f"Missing required parameter '{key}' in non-interactive mode.")
 
         context = Context(initial_params, self.env, prompt_cb, self)
+
+        # Use a script-specific child logger so scripts can easily identify
+        # their log output. Example logger name: 'giorgio.scripts.my_script'.
+        try:
+            script_logger_name = f"giorgio.scripts.{script.replace('/', '.')}"
+            context.logger = logging.getLogger(script_logger_name)
+        except Exception:
+            # Fallback to default 'giorgio' logger if anything goes wrong
+            context.logger = logging.getLogger("giorgio")
 
         if not hasattr(module, "run") or not callable(module.run):
             raise AttributeError(f"Script '{script}' must define run(context).")
