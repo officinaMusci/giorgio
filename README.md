@@ -293,7 +293,8 @@ The `Context` object exposes:
 * **Environment variables** — `context.env["VAR"]` (loads from `.env` and the system).
 * **Dynamic prompting** — `context.add_params({...})` to ask for more inputs at runtime (interactive mode only).
 * **Composition** — `context.call_script(name, params)` to run other Giorgio scripts programmatically.
-* **Logging & output** — standard `print()` works; advanced loggers can be wired by UI renderers.
+* **Logging** — `context.logger` exposes standard logging methods (debug/info/warning/error); the engine replaces it with a script-specific child logger `giorgio.scripts.<script_path>` when a script runs.
+* **Output** — standard `print()` and other output streams are supported; UI renderers may capture and display these outputs in interactive mode.
 <!-- END GIORGIO_SCRIPT_ANATOMY -->
 
 ## Composing automations

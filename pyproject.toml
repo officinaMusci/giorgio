@@ -15,7 +15,8 @@ dependencies = [
     "questionary>=1.10.0",
     "python-dotenv>=1.0.0",
     "instructor>=1.0.0",
-    "openai>=1.0.0"
+    "openai>=1.0.0",
+    "rich>=13.0.0"
 ]
 keywords = ["automation", "cli", "scripts", "micro-framework"]
 classifiers = [
