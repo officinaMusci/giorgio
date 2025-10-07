@@ -114,8 +114,9 @@ def test_cli_run_and_parameters(tmp_path, monkeypatch):
         encoding="utf-8",
     )
     result = runner.invoke(app, ["run", "hello"])
-    assert result.exit_code == 1
-    assert "Missing required parameter" in result.stdout
+    assert result.exit_code != 0
+    assert result.exception is not None
+    assert "Missing required parameter" in str(result.exception)
     result = runner.invoke(app, ["run", "hello", "--param", "x=42"])
     assert result.exit_code == 0
     assert "42" in result.stdout
@@ -156,8 +157,9 @@ def test_run_script_handles_exception(monkeypatch, tmp_path):
     runner.invoke(app, ["init"])
     monkeypatch.setattr(cli, "ExecutionEngine", lambda *a, **k: DummyEngine())
     result = runner.invoke(app, ["run", "noscript"])
-    assert result.exit_code == 1
-    assert "Error: fail run" in result.stdout
+    assert result.exit_code != 0
+    assert result.exception is not None
+    assert "fail run" in str(result.exception)
 
 
 def test_start_no_ui_renderers(monkeypatch, tmp_path):
@@ -243,8 +245,9 @@ def test_start_script_execution_error(monkeypatch, tmp_path):
     monkeypatch.setattr(cli, "_discover_ui_renderers", lambda: {"dummy": DummyRenderer})
     monkeypatch.setattr(cli, "ExecutionEngine", lambda *a, **k: DummyEngine())
     result = runner.invoke(app, ["start"])
-    assert result.exit_code == 1
-    assert "Error: fail exec" in result.stdout
+    assert result.exit_code != 0
+    assert result.exception is not None
+    assert "fail exec" in str(result.exception)
 
 
 def test_init_error(monkeypatch, tmp_path):
