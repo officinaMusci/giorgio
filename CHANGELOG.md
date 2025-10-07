@@ -2,6 +2,79 @@
 
 All notable changes to this project will be documented in this file.
 
+## 1.5.6 (2025-09-05)
+
+### Fix
+
+- improve README.md discovery logic and enhance fallback mechanisms
+
+## 1.5.5 (2025-09-05)
+
+### Fix
+
+- enhance README.md discovery and update package data configuration in pyproject.toml
+
+## 1.5.4 (2025-09-05)
+
+### Fix
+
+- refactor README.md path resolution and update package data configuration in pyproject.toml
+
+## 1.5.3 (2025-09-05)
+
+### Fix
+
+- remove MANIFEST.in and update pyproject.toml to include README.md and LICENSE in package data
+
+## 1.5.2 (2025-09-05)
+
+### Fix
+
+- update MANIFEST.in and pyproject.toml to include LICENSE and enable package data inclusion
+
+## 1.5.1 (2025-09-05)
+
+### Fix
+
+- add support for loading environment variables from a .env file
+
+## 1.5.0 (2025-09-05)
+
+### Feat
+
+- add module and script selection prompts using questionary
+- implement module path loading in ExecutionEngine for dynamic imports
+- refactor AIScriptingClient initialization to use project root directly
+- enhance AIClient to log assistant messages for improved context tracking
+- add fallback schema and remove test for schema validation
+- add messages property to AIClient for consolidated message handling
+- enhance message handling in AIClient to improve user-assistant interactions and clarify output constraints
+- enhance with_doc method to append user-assistant message pairs for context documents
+- enhance message handling in AIClient to consolidate system messages
+- add script unwrapping functionality to extract Python code from responses
+- implement AI script generation in CLI and enhance project management functions
+
+### Fix
+
+- update Python version support to 3.10+ in CI configuration and documentation
+- update README.md for clarity and structure, enhancing sections on features, installation, and usage
+- rename method to get_script_anatomy_content and extract relevant section from README.md
+- update ClientConfig to read temperature and max_output_tokens from environment variables
+- update environment variable names for AI configuration in tests
+- update AI configuration to use environment variables with AI prefix
+- change init command option from --name to positional argument
+- update AIScriptingClient to read AI config from environment variables instead of project config
+- update with_example method to accept a single example and adjust related prompts
+- remove unused strategy parameter from with_doc method
+- skip empty __init__.py files and adjust module path resolution
+- improve checked logic in _prompt_choices for multiple selections
+- remove duplicate code in get_project_config function
+
+### Refactor
+
+- remove unused variables and imports
+- update with_examples method to accept a list of examples and improve reset method documentation
+
 ## 1.4.0 (2025-07-11)
 
 ### Feat
