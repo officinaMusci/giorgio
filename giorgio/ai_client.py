@@ -32,11 +32,11 @@ T = TypeVar("T")
 
 
 @dataclass
-class ClientConfig:
+class AIClientConfig:
     """Configuration settings for the AI backend via Instructor."""
     api_key: Optional[str] = field(default_factory=lambda: os.getenv("AI_API_KEY"))
     base_url: Optional[str] = None
-    model: str = "gpt-4.1-mini"
+    model: str = "codestral/22b"
     temperature: float = field(default_factory=lambda: float(os.getenv("AI_TEMPERATURE", "0.0")))
     request_timeout: Optional[float] = 60.0
     max_output_tokens: Optional[int] = field(default_factory=lambda: int(os.getenv("AI_MAX_TOKENS", "0")))
@@ -55,13 +55,13 @@ class AIClient(Generic[T]):
     """
     High-level AI client using Instructor + Pydantic for typed prompts.
     """
-    
-    def __init__(self, config: ClientConfig) -> None:
+
+    def __init__(self, config: AIClientConfig) -> None:
         """
         Initialize the AIClient with configuration and raw OpenAI client.
 
         :param config: Settings for API key, model, retries, etc.
-        :type config: ClientConfig
+        :type config: AIClientConfig
         :returns: None
         :rtype: None
         """
@@ -357,7 +357,7 @@ You have to write a script using the Giorgio library.
                 "Missing AI config: set AI_API_KEY, AI_BASE_URL, and AI_MODEL in your environment or .env file."
             )
 
-        cfg = ClientConfig(
+        cfg = AIClientConfig(
             api_key=api_key,
             base_url=api_url,
             model=model,
@@ -507,7 +507,7 @@ You have to write a script using the Giorgio library.
             if project_readme.is_file():
                 return project_readme
 
-        raise FileNotFoundError("README.md introuvable (data-files + fallback dev).")
+        raise FileNotFoundError("README.md not found.")
 
     def _get_script_anatomy_content(self) -> str:
         """
