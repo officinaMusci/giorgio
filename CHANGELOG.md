@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## 1.6.0 (2025-10-07)
+
+### Feat
+
+- implement logging
+
+### Fix
+
+- enhance logging details in README.md to clarify context.logger usage
+- update error handling in CLI tests to assert exceptions instead of exit codes
+- handle keyboard interrupt gracefully in run and start commands
+
 ## 1.5.7 (2025-10-07)
 
 ### Fix
