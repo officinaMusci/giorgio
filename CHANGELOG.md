@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## 1.5.7 (2025-10-07)
+
+### Fix
+
+- update AIClientConfig model to 'codestral/22b' in tests
+- update default model in AIClientConfig to use 'codestral/22b'
+- rename ClientConfig to AIClientConfig for consistency across the codebase
+- simplify error message for missing README.md file
+
 ## 1.5.6 (2025-09-05)
 
 ### Fix
