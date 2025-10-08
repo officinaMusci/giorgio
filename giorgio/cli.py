@@ -1,10 +1,10 @@
+import logging
 import sys
 from pathlib import Path
 from typing import List, Dict, Any, Optional
 from importlib.metadata import entry_points
 
 import typer
-from pathlib import Path
 
 from .logconfig import configure_logging
 
@@ -19,6 +19,7 @@ project_root = Path(".").resolve()
 configure_logging(project_root=project_root)
 
 app = typer.Typer(help="Giorgio automation framework CLI")
+logger = logging.getLogger("giorgio.cli")
 
 
 def _parse_params(param_list: List[str]) -> Dict[str, Any]:
@@ -57,7 +58,7 @@ def _discover_ui_renderers() -> Dict[str, type]:
     try:
         # Python 3.10+ API
         eps = entry_points(group="giorgio.ui_renderers")
-    
+
     except TypeError:
         # Older API returns a dict-like
         eps_all = entry_points()
@@ -68,9 +69,9 @@ def _discover_ui_renderers() -> Dict[str, type]:
     for ep in eps:
         try:
             renderers[ep.name] = ep.load()
-        
-        except Exception as e:
-            print(f"Warning: could not load UI plugin {ep.name!r}: {e}")
+
+        except Exception as exc:
+            logger.warning("Could not load UI plugin %s: %s", ep.name, exc, exc_info=True)
     
     return renderers
 
@@ -102,13 +103,16 @@ def init(
     """
     
     project_root = Path(name or ".").resolve()
-    
+    logger.info("Initializing Giorgio project at %s", project_root)
+
     try:
         initialize_project(project_root)
+        logger.info("Successfully initialized project at %s", project_root)
         typer.echo(f"Initialized Giorgio project at {project_root}")
-    
-    except Exception as e:
-        typer.echo(f"Error initializing project: {e}")
+
+    except Exception as exc:
+        logger.exception("Failed to initialize project at %s", project_root)
+        typer.echo(f"Error initializing project: {exc}")
         sys.exit(1)
 
 
@@ -136,6 +140,7 @@ def new(
     :raises FileExistsError: If the script directory already exists.
     """
     project_root = Path(".").resolve()
+    logger.info("Scaffolding new script '%s' (AI prompt provided: %s)", script, bool(ai_prompt))
 
     try:
         if ai_prompt:
@@ -143,14 +148,17 @@ def new(
             script_content = client.generate_script(ai_prompt)
 
             create_script(project_root, script, template=script_content)
+            logger.debug("Generated script content via AI for '%s'", script)
 
         else:
             create_script(project_root, script)
-    
+
+        logger.info("Script '%s' created successfully", script)
         typer.echo(f"Created new script '{script}'")
 
-    except Exception as e:
-        typer.echo(f"Error creating script: {e}")
+    except Exception as exc:
+        logger.exception("Failed to create script '%s'", script)
+        typer.echo(f"Error creating script: {exc}")
         sys.exit(1)
 
 
@@ -185,11 +193,14 @@ def run(
     project_root = Path(".").resolve()
     engine = ExecutionEngine(project_root)
     cli_args = _parse_params(param or [])
-    
+    logger.info("Running script '%s' with CLI params: %s", script, list(cli_args.keys()))
+
     try:
         engine.run_script(script, cli_args=cli_args)
-    
+        logger.info("Script '%s' completed", script)
+
     except KeyboardInterrupt:
+        logger.warning("Script '%s' interrupted by user", script)
         typer.echo("\nExecution interrupted by user.")
         sys.exit(1)
 
@@ -229,9 +240,11 @@ def start(
     project_root = Path(".").resolve()
     engine = ExecutionEngine(project_root)
     renderers = _discover_ui_renderers()
+    logger.debug("Discovered UI renderers: %s", list(renderers))
 
     # Check if any UI renderers are available
     if not renderers:
+        logger.error("No UI renderers available")
         typer.echo("No UI renderers available.", err=True)
         raise typer.Exit(code=1)
 
@@ -241,8 +254,10 @@ def start(
 
     # Check if the specified UI renderer exists
     if ui_name not in renderers:
+        available = ", ".join(renderers)
+        logger.error("Unknown UI renderer %s. Available: %s", ui_name, available)
         typer.echo(
-            f"Unknown UI renderer: {ui_name}. Available: {', '.join(renderers)}",
+            f"Unknown UI renderer: {ui_name}. Available: {available}.",
             err=True
         )
         raise typer.Exit(code=1)
@@ -257,27 +272,33 @@ def start(
         p.relative_to(scripts_dir).parent.as_posix()
         for p in sorted(scripts_dir.rglob("script.py"))
     ]
+    logger.debug("Found %d scripts for interactive mode", len(scripts))
 
     if not scripts:
+        logger.error("No scripts found in scripts/ directory")
         typer.echo("No scripts found in scripts/ directory.")
         sys.exit(1)
 
     # Use the renderer to list scripts and prompt for selection
     script = renderer.list_scripts(scripts)
-    
+
     if not script:
+        logger.info("No script selected in interactive mode")
         typer.echo("No script selected.")
         sys.exit(0)
 
     # Run the selected script with parameters
     try:
+        logger.info("Starting interactive execution for script '%s'", script)
         engine.run_script(
             script,
             cli_args=None,
             add_params_callback=lambda s, e: renderer.prompt_params(s, e),
         )
-    
+        logger.info("Interactive execution for script '%s' completed", script)
+
     except KeyboardInterrupt:
+        logger.warning("Interactive execution for script '%s' interrupted by user", script)
         typer.echo("\nExecution interrupted by user.")
         sys.exit(1)
 

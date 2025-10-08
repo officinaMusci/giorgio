@@ -1,4 +1,5 @@
 from __future__ import annotations
+import logging
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -24,8 +25,13 @@ import questionary
 
 from .project_manager import get_project_config
 
+
+logger = logging.getLogger("giorgio.ai_client")
+
+
 # Cache for wrapping primitive/composite types into Pydantic models
 _MODEL_CACHE: Dict[Any, Type[BaseModel]] = {}
+
 
 MessageRole = Literal["system", "user", "assistant", "tool"]
 T = TypeVar("T")
@@ -82,6 +88,12 @@ class AIClient(Generic[T]):
             self._raw_client,
             mode=config.instructor_mode,
         )
+        logger.debug(
+            "AIClient initialized (model=%s, base_url=%s, retries=%d)",
+            config.model,
+            config.base_url or "default",
+            config.max_retries,
+        )
 
         # Initialize per-call state
         self._messages: List[Message] = []
@@ -107,6 +119,7 @@ class AIClient(Generic[T]):
         )
 
         _MODEL_CACHE[py_type] = model
+        logger.debug("Cached Pydantic wrapper for %s", py_type)
         
         return model
 
@@ -122,9 +135,11 @@ class AIClient(Generic[T]):
         """
         is_model = isinstance(target, type) and issubclass(target, BaseModel)
         if is_model:
+            logger.debug("Using provided response model %s", target.__name__)
             return target, False  # already a Pydantic model
 
         wrapped = self._wrap_primitive_in_model(target)
+        logger.debug("Wrapped response type %s into Pydantic model", target)
 
         return wrapped, True
 
@@ -164,6 +179,7 @@ class AIClient(Generic[T]):
         :rtype: AIClient[T]
         """
         self._messages.append(Message(role="system", content=text))
+        logger.debug("Added system instructions (%d chars)", len(text))
 
         return self
 
@@ -178,6 +194,7 @@ class AIClient(Generic[T]):
         """
         self._messages.append(Message(role="user", content="Show me an example"))
         self._messages.append(Message(role="assistant", content=example))
+        logger.debug("Appended example interaction (%d chars)", len(example))
 
         return self
 
@@ -201,6 +218,7 @@ class AIClient(Generic[T]):
 
         self._messages.append(Message(role="user", content=user_msg))
         self._messages.append(Message(role="assistant", content=assistant_msg))
+        logger.debug("Attached context document '%s' (%d chars)", name, len(content))
 
         return self
 
@@ -229,6 +247,7 @@ class AIClient(Generic[T]):
 
         self._messages.append(Message(role="user", content=user_msg))
         self._messages.append(Message(role="assistant", content=assistant_msg))
+        logger.debug("Declared output schema %s (json_only=%s)", model.__name__, json_only)
 
         return self
 
@@ -245,6 +264,7 @@ class AIClient(Generic[T]):
             self._response_model, self._wrapped_value = self._wrap_primitive_in_model(str), True
 
         self._messages.append(Message(role="user", content=prompt))
+        logger.info("Requesting AI completion with %d messages", len(self._messages))
 
         # Perform chat completion with schema enforcement and retries
         response = self.client.chat.completions.create(
@@ -257,6 +277,7 @@ class AIClient(Generic[T]):
 
         message = response.value if self._wrapped_value else response  # type: ignore
         self._messages.append(Message(role="assistant", content=message))
+        logger.debug("Received structured AI response (%d chars)", len(str(message)))
 
         return message
 
@@ -270,6 +291,7 @@ class AIClient(Generic[T]):
         :rtype: str
         """
         self._messages.append(Message(role="user", content=prompt))
+        logger.info("Requesting raw AI completion with %d messages", len(self._messages))
         
         # Perform chat completion without schema enforcement
         response = self._raw_client.chat.completions.create(
@@ -281,6 +303,7 @@ class AIClient(Generic[T]):
 
         message = response.choices[0].message.content  # type: ignore
         self._messages.append(Message(role="assistant", content=message))
+        logger.debug("Received raw AI response (%d chars)", len(message or ""))
         
         return message
 
@@ -294,6 +317,7 @@ class AIClient(Generic[T]):
         self._messages.clear()
         self._response_model = None
         self._wrapped_value = False
+    logger.debug("AIClient state reset")
 
 
 class AIScriptingClient:
@@ -331,6 +355,7 @@ You have to write a script using the Giorgio library.
         :rtype: None
         :raises RuntimeError: If required AI config env vars are missing.
         """
+        logger.debug("Initializing AIScriptingClient for project root %s", project_root)
         project_root = Path(project_root)
 
         env_file = project_root / ".env"
@@ -340,9 +365,11 @@ You have to write a script using the Giorgio library.
                 from dotenv import load_dotenv
 
             except ImportError:
+                logger.error("python-dotenv is required to load AI config from %s", env_file)
                 raise RuntimeError("python-dotenv is required to load .env files.")
 
             load_dotenv(dotenv_path=str(env_file), override=False)
+            logger.info("Loaded AI environment configuration from %s", env_file)
 
         # Read AI config from environment variables
         api_key = os.getenv("AI_API_KEY")
@@ -366,6 +393,12 @@ You have to write a script using the Giorgio library.
         )
         self.ai_client = AIClient(cfg)
         self.project_root = project_root
+        logger.debug(
+            "AIScriptingClient configured (model=%s, base_url=%s, max_tokens=%s)",
+            model,
+            api_url,
+            max_output_tokens,
+        )
     
     def _get_modules_content(self) -> List[Tuple[str, str]]:
         """
@@ -400,6 +433,7 @@ You have to write a script using the Giorgio library.
                     
                     modules.append((python_path, content))
 
+        logger.debug("Loaded %d modules for AI context", len(modules))
         return modules
 
     def _select_modules(self) -> List[Tuple[str, str]]:
@@ -411,6 +445,7 @@ You have to write a script using the Giorgio library.
         """
         modules = self._get_modules_content()
         if not modules:
+            logger.debug("No modules available for AI context selection")
             return []
 
         choices = [
@@ -423,6 +458,7 @@ You have to write a script using the Giorgio library.
             choices=choices,
         ).ask() or []
 
+        logger.debug("Selected %d modules for AI context", len(selected))
         return selected
 
     def _get_script_template_content(self) -> str:
@@ -433,8 +469,9 @@ You have to write a script using the Giorgio library.
         :rtype: str
         """
         template_path = Path(__file__).parent / "templates" / "script_template.py"
-
-        return template_path.read_text().strip()
+        content = template_path.read_text().strip()
+        logger.debug("Loaded script template from %s", template_path)
+        return content
     
     def _get_scripts_content(self) -> List[Tuple[str, str]]:
         """
@@ -457,6 +494,7 @@ You have to write a script using the Giorgio library.
                 script_name = str(rel_path.parent.with_suffix(""))
                 scripts.append((script_name, content))
 
+        logger.debug("Loaded %d existing scripts for examples", len(scripts))
         return scripts
 
     def _select_scripts(self) -> List[str]:
@@ -468,6 +506,7 @@ You have to write a script using the Giorgio library.
         """
         scripts = self._get_scripts_content()
         if not scripts:
+            logger.debug("No existing scripts available for AI examples")
             return []
 
         choices = [
@@ -480,6 +519,7 @@ You have to write a script using the Giorgio library.
             choices=choices,
         ).ask() or []
 
+        logger.debug("Selected %d scripts as AI examples", len(selected))
         return selected
 
     def _find_readme(self) -> Path:
@@ -491,13 +531,16 @@ You have to write a script using the Giorgio library.
             dist = distribution("giorgio")
             for f in dist.files or []:
                 if f.name == "README.md" and "share/doc/giorgio" in str(f).replace("\\", "/"):
-                    return Path(dist.locate_file(f))
-        except Exception:
-            pass  # Ignore if not installed as a package
+                    path = Path(dist.locate_file(f))
+                    logger.debug("Found README via installed distribution at %s", path)
+                    return path
+        except Exception as exc:
+            logger.debug("Could not locate README in installed distribution: %s", exc)
 
         # Try parent directory of this file
         p = Path(__file__).resolve().parents[1] / "README.md"
         if p.is_file():
+            logger.debug("Found README alongside package at %s", p)
             return p
 
         # Fallback: try project root (self.project_root/README.md)
@@ -505,6 +548,7 @@ You have to write a script using the Giorgio library.
         if project_readme:
             project_readme = Path(project_readme) / "README.md"
             if project_readme.is_file():
+                logger.debug("Found README in project root at %s", project_readme)
                 return project_readme
 
         raise FileNotFoundError("README.md not found.")
@@ -527,8 +571,11 @@ You have to write a script using the Giorgio library.
         end_idx = content.find(end)
         
         if start_idx != -1 and end_idx != -1 and start_idx < end_idx:
-            return content[start_idx + len(start):end_idx].strip()
+            section = content[start_idx + len(start):end_idx].strip()
+            logger.debug("Extracted script anatomy section from README (%d chars)", len(section))
+            return section
         
+        logger.debug("Using full README content as anatomy fallback (%d chars)", len(content))
         return content
 
     def _unwrap_script(self, response: str) -> str:
@@ -542,8 +589,11 @@ You have to write a script using the Giorgio library.
         match = re.search(code_fence_pattern, script, re.IGNORECASE)
         
         if match:
-            return match.group(1).strip()
+            unwrapped = match.group(1).strip()
+            logger.debug("Unwrapped script from markdown fences (%d chars)", len(unwrapped))
+            return unwrapped
         
+        logger.debug("AI response contained no fences; using raw script (%d chars)", len(script))
         return script
 
     def generate_script(self, instructions: str) -> str:
@@ -556,6 +606,7 @@ You have to write a script using the Giorgio library.
         :rtype: str
         """
         self.ai_client.reset()
+        logger.info("Generating script with AI instructions (%d chars)", len(instructions))
 
         # Build prompt
         client = self.ai_client
@@ -580,5 +631,6 @@ You have to write a script using the Giorgio library.
         # Ask for the script
         script = client.ask(instructions)
         script = self._unwrap_script(script)
+        logger.info("AI script generation completed (%d chars)", len(script))
 
         return script

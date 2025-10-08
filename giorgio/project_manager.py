@@ -1,10 +1,14 @@
 import json
 import sys
+import logging
 from pathlib import Path
 from importlib.metadata import version as _get_version, PackageNotFoundError
 import questionary
 import importlib.util
 from types import MappingProxyType
+
+
+logger = logging.getLogger("giorgio.project_manager")
 
 
 def initialize_project(root: Path, project_name: str = None) -> None:
@@ -27,40 +31,51 @@ def initialize_project(root: Path, project_name: str = None) -> None:
     exist.    
     """
 
+    logger.info("Initializing Giorgio project at %s", root)
+
     # Check/create the root directory
     root.mkdir(parents=True, exist_ok=True)
 
     # Create scripts/ (for user scripts)
     scripts_dir = root / "scripts"
     if scripts_dir.exists():
+        logger.error("Cannot initialize project: directory '%s' already exists", scripts_dir)
         raise FileExistsError(f"Directory '{scripts_dir}' already exists.")
     
     scripts_dir.mkdir()
+    logger.debug("Created scripts directory at %s", scripts_dir)
 
     # Create modules/ (for shared modules) + __init__.py
     modules_dir = root / "modules"
     if modules_dir.exists():
+        logger.error("Cannot initialize project: directory '%s' already exists", modules_dir)
         raise FileExistsError(f"Directory '{modules_dir}' already exists.")
     
     modules_dir.mkdir()
+    logger.debug("Created modules directory at %s", modules_dir)
     
     # Create __init__.py inside to make 'modules' importable
     init_file = modules_dir / "__init__.py"
     init_file.touch()
+    logger.debug("Created modules __init__ at %s", init_file)
 
     # Create .env (empty file)
     env_file = root / ".env"
     if env_file.exists():
+        logger.error("Cannot initialize project: file '%s' already exists", env_file)
         raise FileExistsError(f"File '{env_file}' already exists.")
     
     env_file.touch()
+    logger.debug("Created .env file at %s", env_file)
 
     # Create .giorgio/ and config.json
     giorgio_dir = root / ".giorgio"
     if giorgio_dir.exists():
+        logger.error("Cannot initialize project: directory '%s' already exists", giorgio_dir)
         raise FileExistsError(f"Directory '{giorgio_dir}' already exists.")
     
     giorgio_dir.mkdir()
+    logger.debug("Created .giorgio directory at %s", giorgio_dir)
 
     config_file = giorgio_dir / "config.json"
     
@@ -81,6 +96,7 @@ def initialize_project(root: Path, project_name: str = None) -> None:
 
     with config_file.open("w", encoding="utf-8") as f:
         json.dump(default_config, f, indent=2)
+    logger.info("Project initialized at %s", root)
 
 
 def create_script(project_root: Path, script: str, template: str = None):
@@ -96,12 +112,16 @@ def create_script(project_root: Path, script: str, template: str = None):
     :raises FileExistsError: If the script directory already exists.
     :raises FileNotFoundError: If the scripts directory does not exist.
     """
+    logger.info("Creating script '%s' under project %s", script, project_root)
+
     scripts_dir = project_root / "scripts"
     if not scripts_dir.exists():
+        logger.error("Cannot create script '%s': scripts directory '%s' missing", script, scripts_dir)
         raise FileNotFoundError(f"Scripts directory '{scripts_dir}' does not exist.")
 
     script_dir = scripts_dir / script
     if script_dir.exists():
+        logger.error("Cannot create script '%s': directory '%s' already exists", script, script_dir)
         raise FileExistsError(f"Script directory '{script_dir}' already exists.")
 
     # Create all parent directories and __init__.py at each level
@@ -113,12 +133,14 @@ def create_script(project_root: Path, script: str, template: str = None):
         init_file = current / "__init__.py"
         if not init_file.exists():
             init_file.touch()
+            logger.debug("Created package init at %s", init_file)
 
     # Determine content
     if template is not None:
         # Replace __SCRIPT_PATH__ in provided template
         script_path_str = script.replace("\\", "/")
         content = template.replace("__SCRIPT_PATH__", script_path_str)
+        logger.debug("Using custom template for script '%s'", script)
     else:
         # load built-in template file if available
         base_dir = Path(__file__).parent
@@ -127,6 +149,7 @@ def create_script(project_root: Path, script: str, template: str = None):
             raw = tpl_file.read_text(encoding="utf-8")
             script_path_str = script.replace("\\", "/")
             content = raw.replace("__SCRIPT_PATH__", script_path_str)
+            logger.debug("Loaded built-in template from %s", tpl_file)
         else:
             # fallback to default inline template
             content = '''from giorgio.execution_engine import Context, GiorgioCancellationError
@@ -149,6 +172,7 @@ def run(context: Context):
     # Write out the script file
     script_file = script_dir / "script.py"
     script_file.write_text(content, encoding="utf-8")
+    logger.info("Script '%s' created at %s", script, script_file)
 
 
 def upgrade_project(root: Path, force: bool = False) -> None:
@@ -170,14 +194,18 @@ def upgrade_project(root: Path, force: bool = False) -> None:
     :raises PackageNotFoundError: If Giorgio is not installed.
     """
     
+    logger.info("Upgrading Giorgio project at %s (force=%s)", root, force)
+
     giorgio_dir = root / ".giorgio"
     config_file = giorgio_dir / "config.json"
     scripts_dir = root / "scripts"
 
     if not config_file.exists():
+        logger.error("Cannot upgrade: configuration file '%s' not found", config_file)
         raise FileNotFoundError(f"Configuration file '{config_file}' not found.")
     
     if not scripts_dir.exists():
+        logger.error("Cannot upgrade: scripts directory '%s' not found", scripts_dir)
         raise FileNotFoundError(f"Scripts directory '{scripts_dir}' not found.")
 
     # Load the project version from config.json
@@ -195,9 +223,13 @@ def upgrade_project(root: Path, force: bool = False) -> None:
 
     print(f"Current project version: {project_version}")
     print(f"Installed Giorgio version: {installed_version}")
+    logger.info(
+        "Project version %s; installed version %s", project_version, installed_version
+    )
 
     if project_version == installed_version and not force:
         print("Project is already up-to-date.")
+        logger.info("Project at %s already up-to-date", root)
         return
 
     def validate_scripts() -> bool:
@@ -210,6 +242,8 @@ def upgrade_project(root: Path, force: bool = False) -> None:
         """
         failed = []
         
+        logger.debug("Validating scripts under %s", scripts_dir)
+
         for script_path in scripts_dir.rglob("script.py"):
             rel_path = script_path.relative_to(scripts_dir).parent
             spec_path = script_path
@@ -227,9 +261,11 @@ def upgrade_project(root: Path, force: bool = False) -> None:
                 cfg = getattr(module, "CONFIG", None)
                 if not isinstance(cfg, dict) or "name" not in cfg or "description" not in cfg:
                     failed.append(str(rel_path))
+                    logger.warning("Script %s missing required CONFIG keys", rel_path)
             
             except Exception as e:
                 failed.append(f"{rel_path} (error: {e})")
+                logger.exception("Error validating script %s", rel_path)
             
             finally:
                 # Remove scripts_dir from sys.path if added
@@ -251,12 +287,15 @@ def upgrade_project(root: Path, force: bool = False) -> None:
     
     else:
         print("Running validation on all scripts...")
+        logger.info("Running validation prior to upgrade for project at %s", root)
         
         if not validate_scripts():
+            logger.error("Validation failed; aborting upgrade for project at %s", root)
             raise RuntimeError("Upgrade aborted due to validation failures.")
         
         # User confirmation
         confirm = questionary.confirm("All scripts validated successfully. Update project version?").ask()
+        logger.debug("User confirmation for upgrade: %s", confirm)
 
     if confirm:
         config_data["giorgio_version"] = installed_version
@@ -265,9 +304,11 @@ def upgrade_project(root: Path, force: bool = False) -> None:
             json.dump(config_data, f, indent=2)
         
         print(f"Project upgraded to Giorgio version {installed_version}.")
+        logger.info("Project at %s upgraded to version %s", root, installed_version)
     
     else:
         print("Upgrade canceled.")
+        logger.info("Project upgrade canceled for %s", root)
 
 def get_project_config(project_root: Path):
     """
@@ -281,6 +322,8 @@ def get_project_config(project_root: Path):
     :raises json.JSONDecodeError: If config.json is invalid.
     """
     config_path = project_root / ".giorgio" / "config.json"
+    logger.debug("Loading project configuration from %s", config_path)
     with open(config_path, "r", encoding="utf-8") as f:
         config = json.load(f)
+    logger.debug("Configuration keys loaded: %s", list(config))
     return MappingProxyType(config)
