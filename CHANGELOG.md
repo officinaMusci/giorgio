@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## 1.7.0 (2025-10-08)
+
+### Feat
+
+- add detailed logging across multiple modules for better traceability
+
+### Fix
+
+- improve UI plugin loading error handling with user feedback
+
 ## 1.6.0 (2025-10-07)
 
 ### Feat
