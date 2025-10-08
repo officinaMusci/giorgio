@@ -1,9 +1,13 @@
 import ast
+import logging
 from typing import Dict, Any, List, Callable, Union, Optional
 from pathlib import Path
 
 import questionary
 from questionary import Choice, Validator, ValidationError
+
+
+logger = logging.getLogger("giorgio.prompt")
 
 
 class _Node:
@@ -141,9 +145,9 @@ class ScriptFinder:
                         ):
                             return value.value
             
-        except Exception:
+        except Exception as exc:
             # In case of error, use the fallback
-            pass
+            logger.debug("Failed to extract CONFIG name from %s: %s", full_path, exc, exc_info=True)
         
         # Fallback: return the parent folder name
         return script_path
@@ -240,6 +244,7 @@ class ScriptFinder:
 
             choice = questionary.select(prompt, choices=menu_items).ask()
             if choice is None:
+                logger.debug("Script selection cancelled at path %s", "/".join(path_parts))
                 return None
 
             if choice == "__back__":
@@ -255,6 +260,7 @@ class ScriptFinder:
                 continue
 
             # Otherwise, it's a script, return the path
+            logger.debug("Script '%s' selected via CLI", choice)
             return choice
             
     def _build_script_choice_with_path(self, script_name: str, path_parts: List[str]) -> Choice:

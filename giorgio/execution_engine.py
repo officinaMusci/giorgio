@@ -10,6 +10,10 @@ from typing import Any, Dict, Optional, Callable, List
 from .prompt import prompt_for_params
 from .project_manager import get_project_config
 
+
+logger = logging.getLogger("giorgio.execution_engine")
+
+
 class GiorgioCancellationError(Exception):
     """
     Raised when the user requests cancellation (e.g. via Ctrl+C)
@@ -110,6 +114,7 @@ class ExecutionEngine:
         self.project_root = project_root
         self.env = self._load_env()
         self.module_paths = self._load_module_paths()
+        logger.debug("ExecutionEngine initialized for project root %s", self.project_root)
 
     def _load_env(self) -> Dict[str, str]:
         """
@@ -130,9 +135,14 @@ class ExecutionEngine:
                 from dotenv import load_dotenv
 
             except ImportError:
+                logger.error("python-dotenv is required to load environment variables from %s", env_file)
                 raise RuntimeError("python-dotenv is required to load .env files.")
             
             load_dotenv(dotenv_path=str(env_file), override=False)
+            logger.info("Loaded environment variables from %s", env_file)
+
+        else:
+            logger.debug("No .env file found at %s", env_file)
 
         return dict(os.environ)
 
@@ -143,7 +153,8 @@ class ExecutionEngine:
         """
         try:
             config = get_project_config(self.project_root)
-        except Exception:
+        except Exception as exc:
+            logger.warning("Failed to load project config for module paths: %s", exc, exc_info=True)
             return []
         
         module_paths: List[str] = config.get("module_paths", [])
@@ -152,6 +163,11 @@ class ExecutionEngine:
         for p in module_paths:
             abs_paths.append(str((self.project_root / p).resolve()))
         
+        if abs_paths:
+            logger.debug("Resolved module paths: %s", abs_paths)
+        else:
+            logger.debug("No module paths configured; using project root only")
+
         return abs_paths
 
     def _import_script_module(self, script: str):
@@ -169,6 +185,7 @@ class ExecutionEngine:
         scripts_dir = self.project_root / "scripts"
         module_path = scripts_dir / script / "script.py"
         if not module_path.exists():
+            logger.error("Script '%s' not found under %s", script, scripts_dir)
             raise FileNotFoundError(f"Script '{script}' not found under scripts/.")
 
         # Prepare sys.path insertions
@@ -182,27 +199,34 @@ class ExecutionEngine:
             if p not in sys.path:
                 sys.path.insert(0, p)
                 inserted.append(p)
+        if inserted:
+            logger.debug("Temporarily inserted paths for script '%s': %s", script, inserted)
 
         # Ensure each module path is a package
         for mod_path in mod_paths:
             mod_dir = Path(mod_path)
             if not mod_dir.exists():
+                logger.error("Configured module path '%s' does not exist", mod_path)
                 raise RuntimeError(f"Module path '{mod_path}' does not exist.")
             init_py = mod_dir / "__init__.py"
             if not init_py.exists():
                 init_py.touch()
+                logger.debug("Created missing __init__.py in module path %s", mod_dir)
 
         try:
             name = script.replace("/", ".")
             spec = importlib.util.spec_from_file_location(name, str(module_path))
             module = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(module)  # type: ignore
+            logger.info("Imported script module '%s'", script)
         finally:
             for p in inserted:
                 try:
                     sys.path.remove(p)
                 except ValueError:
                     pass
+            if inserted:
+                logger.debug("Removed temporary paths for script '%s'", script)
         return module
 
     def _signal_handler(self, signum, frame) -> None:
@@ -222,6 +246,7 @@ class ExecutionEngine:
         """
 
         self._cancel_requested = True
+        logger.info("Received signal %s; marking cancellation", signum)
         raise GiorgioCancellationError("Execution cancelled by user.")
 
     def run_script(
@@ -254,6 +279,7 @@ class ExecutionEngine:
         (e.g., via Ctrl+C).
         """
 
+        logger.info("Starting execution for script '%s'", script)
         module = self._import_script_module(script)
         schema = getattr(module, "PARAMS", {}) or {}
 
@@ -264,6 +290,7 @@ class ExecutionEngine:
             
             initial_params = prompt_for_params(schema, self.env)
             prompt_cb = add_params_callback
+            logger.debug("Collected interactive parameters for script '%s'", script)
         
         else:
             initial_params = {}
@@ -295,9 +322,11 @@ class ExecutionEngine:
                             val = expected(raw)
                     
                         except Exception:
+                            logger.error("Failed to cast parameter '%s' to %s", key, expected.__name__)
                             raise ValueError(f"Invalid type for parameter '{key}': expected {expected.__name__}.")
                     
                     if choices and val not in choices:
+                        logger.error("Invalid choice '%s' for parameter '%s'", val, key)
                         raise ValueError(f"Invalid choice '{val}' for parameter '{key}'.")
                     
                     initial_params[key] = val
@@ -320,17 +349,20 @@ class ExecutionEngine:
                                 converted = False
                             
                             else:
+                                logger.error("Invalid default boolean for '%s': '%s'", key, val)
                                 raise ValueError(f"Invalid default boolean for '{key}': '{val}'.")
                         else:
                             try:
                                 converted = expected(val)
                             
                             except Exception:
+                                logger.error("Invalid default for '%s': cannot convert '%s'", key, val)
                                 raise ValueError(f"Invalid default for '{key}': cannot convert '{val}'.")
                         
                         initial_params[key] = converted
                     
                     elif required:
+                        logger.error("Missing required parameter '%s' for non-interactive execution", key)
                         raise RuntimeError(f"Missing required parameter '{key}' in non-interactive mode.")
 
         context = Context(initial_params, self.env, prompt_cb, self)
@@ -340,11 +372,14 @@ class ExecutionEngine:
         try:
             script_logger_name = f"giorgio.scripts.{script.replace('/', '.')}"
             context.logger = logging.getLogger(script_logger_name)
+            logger.debug("Assigned script logger '%s'", script_logger_name)
         except Exception:
             # Fallback to default 'giorgio' logger if anything goes wrong
             context.logger = logging.getLogger("giorgio")
+            logger.warning("Falling back to default logger for script '%s'", script, exc_info=True)
 
         if not hasattr(module, "run") or not callable(module.run):
+            logger.error("Script '%s' does not define a callable run(context)", script)
             raise AttributeError(f"Script '{script}' must define run(context).")
 
         prev_handler = None
@@ -353,13 +388,17 @@ class ExecutionEngine:
         
         try:
             module.run(context)
+            logger.info("Script '%s' executed successfully", script)
         
         except GiorgioCancellationError:
+            logger.info("Script '%s' cancelled by user request", script)
             print("Script execution cancelled.", flush=True)
         
         except KeyboardInterrupt:
+            logger.warning("Script '%s' interrupted (KeyboardInterrupt)", script)
             print("Script execution cancelled (KeyboardInterrupt).", flush=True)
         
         finally:
             if prev_handler and sys.platform != "win32":
                 signal.signal(signal.SIGINT, prev_handler)
+            logger.debug("Restored previous signal handler for script '%s'", script)
