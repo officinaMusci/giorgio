@@ -72,6 +72,7 @@ def _discover_ui_renderers() -> Dict[str, type]:
 
         except Exception as exc:
             logger.warning("Could not load UI plugin %s: %s", ep.name, exc, exc_info=True)
+            typer.echo(f"Warning: could not load UI plugin {ep.name!r}: {exc}")
     
     return renderers
 
