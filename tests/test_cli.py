@@ -6,6 +6,7 @@ import pytest
 from typer import BadParameter
 from typer.testing import CliRunner
 import questionary
+import giorgio.project_manager as pm
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
@@ -120,6 +121,87 @@ def test_cli_run_and_parameters(tmp_path, monkeypatch):
     result = runner.invoke(app, ["run", "hello", "--param", "x=42"])
     assert result.exit_code == 0
     assert "42" in result.stdout
+
+
+def test_version_mismatch_warning_on_run(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    runner.invoke(app, ["init"])
+
+    config_path = tmp_path / ".giorgio" / "config.json"
+    config = json.loads(config_path.read_text(encoding="utf-8"))
+    config["giorgio_version"] = "1.0.0"
+    config_path.write_text(json.dumps(config), encoding="utf-8")
+
+    script_dir = tmp_path / "scripts" / "hello"
+    script_dir.mkdir(parents=True)
+    (script_dir / "__init__.py").write_text("", encoding="utf-8")
+    (script_dir / "script.py").write_text(
+        "PARAMS = {'x': {'type': int, 'required': True}}\n"
+        "def run(context): print(context.params['x'])\n",
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr("giorgio.project_manager._get_version", lambda pkg: "2.0.0")
+
+    result = runner.invoke(app, ["run", "hello", "--param", "x=7"])
+    assert result.exit_code == 0
+    assert "⚠️  Project expects Giorgio 1.0.0, but version 2.0.0 is installed." in result.stdout
+
+
+def test_cli_upgrade_command(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    runner.invoke(app, ["init"])
+
+    script_dir = tmp_path / "scripts" / "good"
+    script_dir.mkdir(parents=True)
+    (script_dir / "__init__.py").write_text("", encoding="utf-8")
+    (script_dir / "script.py").write_text(
+        "CONFIG = {'name': 'good', 'description': 'desc'}\nPARAMS = {}\ndef run(context): pass\n",
+        encoding="utf-8",
+    )
+
+    config_path = tmp_path / ".giorgio" / "config.json"
+    config = json.loads(config_path.read_text(encoding="utf-8"))
+    config["giorgio_version"] = "1.0.0"
+    config_path.write_text(json.dumps(config), encoding="utf-8")
+
+    monkeypatch.setattr("giorgio.project_manager._get_version", lambda pkg: "3.2.1")
+    monkeypatch.setattr(
+        pm.questionary,
+        "confirm",
+        lambda msg: type("StubQ", (), {"ask": lambda self: True})(),
+    )
+
+    result = runner.invoke(app, ["upgrade"])
+    assert result.exit_code == 0
+    assert "Project upgraded to Giorgio version 3.2.1." in result.stdout
+
+    updated = json.loads(config_path.read_text(encoding="utf-8"))
+    assert updated["giorgio_version"] == "3.2.1"
+
+
+def test_cli_upgrade_force_skips_validation(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    runner.invoke(app, ["init"])
+
+    bad_dir = tmp_path / "scripts" / "bad"
+    bad_dir.mkdir(parents=True)
+    (bad_dir / "__init__.py").write_text("", encoding="utf-8")
+    (bad_dir / "script.py").write_text("def run(context): pass\n", encoding="utf-8")
+
+    config_path = tmp_path / ".giorgio" / "config.json"
+    config = json.loads(config_path.read_text(encoding="utf-8"))
+    config["giorgio_version"] = "1.0.0"
+    config_path.write_text(json.dumps(config), encoding="utf-8")
+
+    monkeypatch.setattr("giorgio.project_manager._get_version", lambda pkg: "4.5.6")
+
+    result = runner.invoke(app, ["upgrade", "--force"])
+    assert result.exit_code == 0
+    assert "Project upgraded to Giorgio version 4.5.6." in result.stdout
+
+    updated = json.loads(config_path.read_text(encoding="utf-8"))
+    assert updated["giorgio_version"] == "4.5.6"
 
 
 def test_cli_start(tmp_path, monkeypatch):

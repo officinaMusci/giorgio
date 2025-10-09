@@ -1,5 +1,6 @@
 import logging
 import sys
+from json import JSONDecodeError
 from pathlib import Path
 from typing import List, Dict, Any, Optional
 from importlib.metadata import entry_points
@@ -9,7 +10,12 @@ import typer
 from .logconfig import configure_logging
 
 from .execution_engine import ExecutionEngine
-from .project_manager import initialize_project, create_script
+from .project_manager import (
+    initialize_project,
+    create_script,
+    upgrade_project,
+    get_version_status,
+)
 from .ai_client import AIScriptingClient
 
 
@@ -77,6 +83,39 @@ def _discover_ui_renderers() -> Dict[str, type]:
     return renderers
 
 
+def _warn_if_version_mismatch(project_root: Path) -> None:
+    try:
+        configured_version, installed_version = get_version_status(project_root)
+
+    except FileNotFoundError:
+        logger.debug("No Giorgio configuration found at %s; skipping version check", project_root)
+        return
+
+    except JSONDecodeError as exc:
+        logger.warning("Invalid Giorgio configuration at %s: %s", project_root, exc, exc_info=True)
+        return
+
+    if not configured_version or not installed_version:
+        logger.debug(
+            "Skipping version warning due to missing values (configured=%s, installed=%s)",
+            configured_version,
+            installed_version,
+        )
+        return
+
+    if configured_version == installed_version:
+        logger.debug("Project version %s matches installed Giorgio", configured_version)
+        return
+
+    warning = (
+        f"⚠️  Project expects Giorgio {configured_version}, but version {installed_version} is installed."
+    )
+    hint = "Run `giorgio upgrade` to update the project configuration."
+    logger.warning("%s %s", warning, hint)
+    typer.secho(warning, fg="yellow")
+    typer.secho(hint, fg="yellow")
+
+
 @app.command()
 def init(
     name: Optional[str] = typer.Argument(
@@ -141,6 +180,7 @@ def new(
     :raises FileExistsError: If the script directory already exists.
     """
     project_root = Path(".").resolve()
+    _warn_if_version_mismatch(project_root)
     logger.info("Scaffolding new script '%s' (AI prompt provided: %s)", script, bool(ai_prompt))
 
     try:
@@ -160,6 +200,34 @@ def new(
     except Exception as exc:
         logger.exception("Failed to create script '%s'", script)
         typer.echo(f"Error creating script: {exc}")
+        sys.exit(1)
+
+
+@app.command()
+def upgrade(
+    force: bool = typer.Option(
+        False,
+        "--force",
+        "-f",
+        help="Skip script validation and update the project to the installed Giorgio version.",
+    )
+):
+    """
+    Update the project's pinned Giorgio version in .giorgio/config.json.
+
+    When run without --force, all scripts are validated before the version is updated.
+    With --force, validation is skipped and the version is updated immediately.
+    """
+
+    project_root = Path(".").resolve()
+    logger.info("Running upgrade command for project at %s (force=%s)", project_root, force)
+
+    try:
+        upgrade_project(project_root, force=force)
+
+    except Exception as exc:
+        logger.exception("Failed to upgrade project at %s", project_root)
+        typer.echo(f"Error upgrading project: {exc}")
         sys.exit(1)
 
 
@@ -192,6 +260,7 @@ def run(
     """
     
     project_root = Path(".").resolve()
+    _warn_if_version_mismatch(project_root)
     engine = ExecutionEngine(project_root)
     cli_args = _parse_params(param or [])
     logger.info("Running script '%s' with CLI params: %s", script, list(cli_args.keys()))
@@ -239,6 +308,7 @@ def start(
     """
 
     project_root = Path(".").resolve()
+    _warn_if_version_mismatch(project_root)
     engine = ExecutionEngine(project_root)
     renderers = _discover_ui_renderers()
     logger.debug("Discovered UI renderers: %s", list(renderers))

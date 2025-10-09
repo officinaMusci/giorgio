@@ -6,6 +6,7 @@ from importlib.metadata import version as _get_version, PackageNotFoundError
 import questionary
 import importlib.util
 from types import MappingProxyType
+from typing import Optional, Tuple
 
 
 logger = logging.getLogger("giorgio.project_manager")
@@ -319,6 +320,7 @@ def upgrade_project(root: Path, force: bool = False) -> None:
         print("Upgrade canceled.")
         logger.info("Project upgrade canceled for %s", root)
 
+
 def get_project_config(project_root: Path):
     """
     Loads the Giorgio project config.json as a read-only MappingProxyType.
@@ -336,3 +338,27 @@ def get_project_config(project_root: Path):
         config = json.load(f)
     logger.debug("Configuration keys loaded: %s", list(config))
     return MappingProxyType(config)
+
+
+def get_version_status(project_root: Path) -> Tuple[Optional[str], Optional[str]]:
+    """
+    Retrieve the configured Giorgio version for a project and the installed version.
+
+    :param project_root: Path to the project root directory.
+    :type project_root: Path
+    :returns: A tuple of (configured_version, installed_version). Either value may be None.
+    :rtype: Tuple[Optional[str], Optional[str]]
+    :raises FileNotFoundError: If config.json does not exist.
+    :raises json.JSONDecodeError: If config.json is invalid JSON.
+    """
+
+    config = get_project_config(project_root)
+    configured_version = config.get("giorgio_version")
+
+    try:
+        installed_version = _get_version("giorgio")
+
+    except PackageNotFoundError:
+        installed_version = None
+
+    return configured_version, installed_version

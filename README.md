@@ -355,12 +355,18 @@ giorgio start
 giorgio run <script_name> --param key=value [--param key=value ...]
     Run non‑interactively (suitable for Cron). Provide all required params.
 
+giorgio upgrade [--force]
+    Update the project's pinned Giorgio version in .giorgio/config.json. Use --force to skip script validation.
+
 giorgio --help
     Show general help and options.
 ```
 
 > **Tip**
 > Use `--param` repeatedly to pass multiple key/value pairs.
+
+> **Heads-up**
+> If the project configuration references a different Giorgio version than the currently installed CLI, commands such as `run`, `start`, and `new` display a warning suggesting `giorgio upgrade` so you can realign the versions.
 
 ## Scheduling (Cron / Task Scheduler)
 
