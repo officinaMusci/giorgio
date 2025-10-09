@@ -68,6 +68,15 @@ def initialize_project(root: Path, project_name: str = None) -> None:
     env_file.touch()
     logger.debug("Created .env file at %s", env_file)
 
+    # Create requirements.txt with default dependency
+    requirements_file = root / "requirements.txt"
+    if requirements_file.exists():
+        logger.error("Cannot initialize project: file '%s' already exists", requirements_file)
+        raise FileExistsError(f"File '{requirements_file}' already exists.")
+
+    requirements_file.write_text("giorgio\n", encoding="utf-8")
+    logger.debug("Created requirements.txt at %s", requirements_file)
+
     # Create .giorgio/ and config.json
     giorgio_dir = root / ".giorgio"
     if giorgio_dir.exists():
