@@ -4,9 +4,10 @@ import logging
 from pathlib import Path
 from importlib.metadata import version as _get_version, PackageNotFoundError
 import questionary
-import importlib.util
 from types import MappingProxyType
 from typing import Optional, Tuple
+
+from .validation import validate_project, summarize_validation
 
 
 logger = logging.getLogger("giorgio.project_manager")
@@ -243,53 +244,37 @@ def upgrade_project(root: Path, force: bool = False) -> None:
         return
 
     def validate_scripts() -> bool:
-        """
-        Validate all scripts in the 'scripts/' directory by importing them
-        and checking that their CONFIG contains 'name' and 'description'.
+        """Validate scripts using static analysis without executing them."""
 
-        :return: True if all scripts pass validation, False otherwise.
-        :rtype: bool
-        """
-        failed = []
-        
         logger.debug("Validating scripts under %s", scripts_dir)
+        results = validate_project(root)
+        summary = summarize_validation(results)
 
-        for script_path in scripts_dir.rglob("script.py"):
-            rel_path = script_path.relative_to(scripts_dir).parent
-            spec_path = script_path
+        if summary.no_scripts:
+            logger.debug("No scripts found for validation in %s", scripts_dir)
+            print("No scripts found in scripts/ directory.")
+            return True
 
-            try:
-                # Temporarily add scripts_dir to sys.path
-                sys.path.insert(0, str(scripts_dir))
-                
-                module_name = ".".join(rel_path.parts + ("script",))
-                spec = importlib.util.spec_from_file_location(module_name, spec_path)
-                module = importlib.util.module_from_spec(spec)
-                spec.loader.exec_module(module)  # type: ignore
+        for rel_path, messages in summary.entries:
+            print(f"- {rel_path}")
 
-                # Check CONFIG
-                cfg = getattr(module, "CONFIG", None)
-                if not isinstance(cfg, dict) or "name" not in cfg or "description" not in cfg:
-                    failed.append(str(rel_path))
-                    logger.warning("Script %s missing required CONFIG keys", rel_path)
-            
-            except Exception as e:
-                failed.append(f"{rel_path} (error: {e})")
-                logger.exception("Error validating script %s", rel_path)
-            
-            finally:
-                # Remove scripts_dir from sys.path if added
-                if sys.path and sys.path[0] == str(scripts_dir):
-                    sys.path.pop(0)
+            for message in messages:
+                prefix = "ERROR" if message.level == "error" else "WARN"
+                print(f"    [{prefix}] {message.message}")
 
-        if failed:
-            print("Validation failed for the following scripts:")
-            
-            for fpath in failed:
-                print(f"  - {fpath}")
-            
+        if summary.has_errors:
+            logger.error("Validation failed due to script errors.")
+            print("Validation failed. Please address the errors above and retry.")
             return False
-        
+
+        if summary.has_warnings:
+            logger.warning("Validation completed with warnings.")
+            print("Validation completed with warnings. Proceed with caution.")
+            return True
+
+        logger.info("Validation completed successfully for all scripts.")
+        print("Validation completed successfully.")
+
         return True
 
     if force:

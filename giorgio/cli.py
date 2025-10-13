@@ -16,6 +16,7 @@ from .project_manager import (
     upgrade_project,
     get_version_status,
 )
+from .validation import validate_project, summarize_validation
 from .ai_client import AIScriptingClient
 
 
@@ -229,6 +230,37 @@ def upgrade(
         logger.exception("Failed to upgrade project at %s", project_root)
         typer.echo(f"Error upgrading project: {exc}")
         sys.exit(1)
+
+
+@app.command()
+def validate():
+    """Validate all Giorgio scripts without running them."""
+
+    project_root = Path(".").resolve()
+    _warn_if_version_mismatch(project_root)
+
+    results = validate_project(project_root)
+    summary = summarize_validation(results)
+
+    if summary.no_scripts:
+        typer.echo("No scripts found in scripts/ directory.")
+        raise typer.Exit(code=0)
+
+    for rel_path, messages in summary.entries:
+        typer.echo(f"- {rel_path}")
+
+        for message in messages:
+            fg = "red" if message.level == "error" else "yellow"
+            typer.secho(f"    [{message.level.upper()}] {message.message}", fg=fg)
+
+    if summary.has_errors:
+        typer.secho("Validation failed. Please address the errors above and retry.", fg="red")
+        raise typer.Exit(code=1)
+
+    if summary.has_warnings:
+        typer.secho("Validation completed with warnings. Proceed with caution.", fg="yellow")
+    else:
+        typer.secho("All scripts validated successfully.", fg="green")
 
 
 @app.command()

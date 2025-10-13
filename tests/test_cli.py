@@ -148,6 +148,43 @@ def test_version_mismatch_warning_on_run(tmp_path, monkeypatch):
     assert "⚠️  Project expects Giorgio 1.0.0, but version 2.0.0 is installed." in result.stdout
 
 
+def test_cli_validate_success(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    runner.invoke(app, ["init"])
+
+    script_dir = tmp_path / "scripts" / "hello"
+    script_dir.mkdir(parents=True)
+    (script_dir / "__init__.py").write_text("", encoding="utf-8")
+    (script_dir / "script.py").write_text(
+        "CONFIG = {\"name\": \"Hello\", \"description\": \"Test\"}\n"
+        "PARAMS = {}\n"
+        "def run(context):\n    return None\n",
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(app, ["validate"])
+    assert result.exit_code == 0
+    assert "All scripts validated successfully." in result.stdout
+
+
+def test_cli_validate_failure(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    runner.invoke(app, ["init"])
+
+    script_dir = tmp_path / "scripts" / "broken"
+    script_dir.mkdir(parents=True)
+    (script_dir / "__init__.py").write_text("", encoding="utf-8")
+    (script_dir / "script.py").write_text(
+        "PARAMS = {}\n"
+        "def run(context):\n    return None\n",
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(app, ["validate"])
+    assert result.exit_code == 1
+    assert "Validation failed" in result.stdout
+
+
 def test_cli_upgrade_command(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     runner.invoke(app, ["init"])
@@ -202,6 +239,37 @@ def test_cli_upgrade_force_skips_validation(tmp_path, monkeypatch):
 
     updated = json.loads(config_path.read_text(encoding="utf-8"))
     assert updated["giorgio_version"] == "4.5.6"
+
+
+def test_cli_validate_success(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    runner.invoke(app, ["init"])
+    script_dir = tmp_path / "scripts" / "okay"
+    script_dir.mkdir(parents=True)
+    (script_dir / "__init__.py").write_text("", encoding="utf-8")
+    (script_dir / "script.py").write_text(
+        "CONFIG = {'name': 'ok', 'description': 'desc'}\nPARAMS = {}\ndef run(context): pass\n",
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(app, ["validate"])
+    assert result.exit_code == 0
+    assert "All scripts validated successfully." in result.stdout
+
+
+def test_cli_validate_reports_errors(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    runner.invoke(app, ["init"])
+    script_dir = tmp_path / "scripts" / "bad"
+    script_dir.mkdir(parents=True)
+    (script_dir / "__init__.py").write_text("", encoding="utf-8")
+    (script_dir / "script.py").write_text("def run(context): pass\n", encoding="utf-8")
+
+    result = runner.invoke(app, ["validate"])
+    assert result.exit_code == 1
+    assert "scripts/bad/script.py" in result.stdout
+    assert "Missing CONFIG definition" in result.stdout
+    assert "Validation failed" in result.stdout
 
 
 def test_cli_start(tmp_path, monkeypatch):

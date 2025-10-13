@@ -358,6 +358,9 @@ giorgio run <script_name> --param key=value [--param key=value ...]
 giorgio upgrade [--force]
     Update the project's pinned Giorgio version in .giorgio/config.json. Use --force to skip script validation.
 
+giorgio validate
+    Run static validation on all scripts without executing them.
+
 giorgio --help
     Show general help and options.
 ```
