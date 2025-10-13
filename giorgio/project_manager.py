@@ -232,11 +232,11 @@ def upgrade_project(root: Path, force: bool = False) -> None:
     except PackageNotFoundError:
         installed_version = "0.0.0"
 
-    print(f"Current project version: {project_version}")
-    print(f"Installed Giorgio version: {installed_version}")
     logger.info(
         "Project version %s; installed version %s", project_version, installed_version
     )
+    print(f"Current project version: {project_version}")
+    print(f"Installed Giorgio version: {installed_version}")
 
     if project_version == installed_version and not force:
         print("Project is already up-to-date.")
@@ -281,8 +281,8 @@ def upgrade_project(root: Path, force: bool = False) -> None:
         confirm = True
     
     else:
-        print("Running validation on all scripts...")
         logger.info("Running validation prior to upgrade for project at %s", root)
+        print("Running validation on all scripts...")
         
         if not validate_scripts():
             logger.error("Validation failed; aborting upgrade for project at %s", root)
@@ -298,12 +298,12 @@ def upgrade_project(root: Path, force: bool = False) -> None:
         with config_file.open("w", encoding="utf-8") as f:
             json.dump(config_data, f, indent=2)
         
-        print(f"Project upgraded to Giorgio version {installed_version}.")
         logger.info("Project at %s upgraded to version %s", root, installed_version)
+        print(f"Project upgraded to Giorgio version {installed_version}.")
     
     else:
-        print("Upgrade canceled.")
         logger.info("Project upgrade canceled for %s", root)
+        print("Upgrade canceled.")
 
 
 def get_project_config(project_root: Path):
