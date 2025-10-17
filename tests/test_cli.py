@@ -267,7 +267,7 @@ def test_cli_validate_reports_errors(tmp_path, monkeypatch):
 
     result = runner.invoke(app, ["validate"])
     assert result.exit_code == 1
-    assert "scripts/bad/script.py" in result.stdout
+    assert "scripts/bad/script.py" in result.stdout or "scripts\\bad\\script.py" in result.stdout
     assert "Missing CONFIG definition" in result.stdout
     assert "Validation failed" in result.stdout
 
