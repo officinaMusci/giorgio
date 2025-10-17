@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## 1.8.0 (2025-10-17)
+
+### Feat
+
+- add performance tips for script inspection
+- add static validation command and implement validation logic for scripts
+- implement upgrade command and version mismatch warning in CLI
+- add requirements.txt creation during project initialization with error handling
+
+### Fix
+
+- update validation test to support both Unix and Windows path formats
+- enhance upgrade project feedback with version details and validation messages
+
 ## 1.7.0 (2025-10-08)
 
 ### Feat
