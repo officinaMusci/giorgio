@@ -89,6 +89,35 @@ def test_with_doc_adds_system_message(dummy_config):
     # Match the actual content returned by with_doc
     assert "Document 'README' received and understood." == client._messages[-1].content
 
+
+def test_set_message_display_outputs_markdown(dummy_config, monkeypatch):
+    console_mock = MagicMock()
+    console_mock.rule = MagicMock()
+    console_mock.print = MagicMock()
+    monkeypatch.setattr("giorgio.ai_client.Console", lambda: console_mock)
+    monkeypatch.setattr("giorgio.ai_client.Markdown", lambda content: f"MD:{content}")
+
+    client = AIClient(dummy_config)
+    client.set_message_display(True)
+    client._display_message(Message(role="user", content="Hello"))
+
+    console_mock.rule.assert_called_once()
+    console_mock.print.assert_called_once_with("MD:Hello")
+
+
+def test_show_messages_on_initialization(dummy_config, monkeypatch):
+    console_mock = MagicMock()
+    console_mock.rule = MagicMock()
+    console_mock.print = MagicMock()
+    monkeypatch.setattr("giorgio.ai_client.Console", lambda: console_mock)
+    monkeypatch.setattr("giorgio.ai_client.Markdown", lambda content: f"MD:{content}")
+
+    client = AIClient(dummy_config, show_messages=True)
+    client.with_instructions("Hello **world**")
+
+    console_mock.rule.assert_called_once()
+    console_mock.print.assert_called_once_with("MD:Hello **world**")
+
 def test_with_schema_sets_response_model(dummy_config):
     client = AIClient(dummy_config)
     client.with_schema(str)

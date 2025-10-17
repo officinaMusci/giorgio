@@ -22,6 +22,8 @@ import instructor
 from openai import OpenAI
 from pydantic import BaseModel, create_model, Field
 import questionary
+from rich.console import Console
+from rich.markdown import Markdown
 
 from .project_manager import get_project_config
 
@@ -62,12 +64,21 @@ class AIClient(Generic[T]):
     High-level AI client using Instructor + Pydantic for typed prompts.
     """
 
-    def __init__(self, config: AIClientConfig) -> None:
+    def __init__(
+        self,
+        config: AIClientConfig,
+        show_messages: bool = False,
+        console: Optional[Console] = None
+    ) -> None:
         """
         Initialize the AIClient with configuration and raw OpenAI client.
 
         :param config: Settings for API key, model, retries, etc.
         :type config: AIClientConfig
+        :param show_messages: Whether to render messages in the console.
+        :type show_messages: bool
+        :param console: Optional Rich Console for message rendering.
+        :type console: Optional[Console]
         :returns: None
         :rtype: None
         """
@@ -99,6 +110,28 @@ class AIClient(Generic[T]):
         self._messages: List[Message] = []
         self._response_model: Optional[Type[BaseModel]] = None
         self._wrapped_value = False
+        self._show_messages = show_messages
+        self._console: Optional[Console] = console
+        if self._show_messages and self._console is None:
+            self._console = Console()
+
+    def _add_message(self, message: Message) -> None:
+        self._messages.append(message)
+        self._display_message(message)
+
+    def _display_message(self, message: Message) -> None:
+        if not self._show_messages:
+            return
+
+        if self._console is None:
+            self._console = Console()
+
+        header = f"[bold]{message.role.upper()}[/bold]"
+        self._console.rule(header)
+        if message.content:
+            self._console.print(Markdown(message.content))
+        else:
+            self._console.print("")
 
     def _wrap_primitive_in_model(self, py_type: Any) -> Type[BaseModel]:
         """
@@ -169,6 +202,29 @@ class AIClient(Generic[T]):
         result.extend(other_msgs)
         return result
 
+    def set_message_display(
+        self,
+        enabled: bool = True,
+        console: Optional[Console] = None
+    ) -> None:
+        """
+        Enable or disable CLI message rendering.
+
+        :param enabled: Whether to show messages in the console.
+        :type enabled: bool
+        :param console: Optional Rich Console for message rendering.
+        :type console: Optional[Console]
+        :returns: None
+        :rtype: None
+        """
+        if console is not None:
+            self._console = console
+
+        self._show_messages = enabled
+
+        if self._show_messages and self._console is None:
+            self._console = Console()
+
     def with_instructions(self, text: str) -> "AIClient[T]":
         """
         Add system instructions guiding the AI’s overall behavior.
@@ -178,7 +234,7 @@ class AIClient(Generic[T]):
         :returns: Self, for method chaining.
         :rtype: AIClient[T]
         """
-        self._messages.append(Message(role="system", content=text))
+        self._add_message(Message(role="system", content=text))
         logger.debug("Added system instructions (%d chars)", len(text))
 
         return self
@@ -192,8 +248,8 @@ class AIClient(Generic[T]):
         :returns: Self, for method chaining.
         :rtype: AIClient[T]
         """
-        self._messages.append(Message(role="user", content="Show me an example"))
-        self._messages.append(Message(role="assistant", content=example))
+        self._add_message(Message(role="user", content="Show me an example"))
+        self._add_message(Message(role="assistant", content=example))
         logger.debug("Appended example interaction (%d chars)", len(example))
 
         return self
@@ -216,8 +272,8 @@ class AIClient(Generic[T]):
         user_msg = f"Context document [{name}]:\n{content}"
         assistant_msg = f"Document '{name}' received and understood."
 
-        self._messages.append(Message(role="user", content=user_msg))
-        self._messages.append(Message(role="assistant", content=assistant_msg))
+        self._add_message(Message(role="user", content=user_msg))
+        self._add_message(Message(role="assistant", content=assistant_msg))
         logger.debug("Attached context document '%s' (%d chars)", name, len(content))
 
         return self
@@ -245,8 +301,8 @@ class AIClient(Generic[T]):
         user_msg = f"Output constraint:\n{fmt}"
         assistant_msg = "Output constraint received and understood."
 
-        self._messages.append(Message(role="user", content=user_msg))
-        self._messages.append(Message(role="assistant", content=assistant_msg))
+        self._add_message(Message(role="user", content=user_msg))
+        self._add_message(Message(role="assistant", content=assistant_msg))
         logger.debug("Declared output schema %s (json_only=%s)", model.__name__, json_only)
 
         return self
@@ -263,7 +319,7 @@ class AIClient(Generic[T]):
         if self._response_model is None:
             self._response_model, self._wrapped_value = self._wrap_primitive_in_model(str), True
 
-        self._messages.append(Message(role="user", content=prompt))
+        self._add_message(Message(role="user", content=prompt))
         logger.info("Requesting AI completion with %d messages", len(self._messages))
 
         # Perform chat completion with schema enforcement and retries
@@ -276,7 +332,7 @@ class AIClient(Generic[T]):
         )
 
         message = response.value if self._wrapped_value else response  # type: ignore
-        self._messages.append(Message(role="assistant", content=message))
+        self._add_message(Message(role="assistant", content=message))
         logger.debug("Received structured AI response (%d chars)", len(str(message)))
 
         return message
@@ -290,7 +346,7 @@ class AIClient(Generic[T]):
         :returns: The raw assistant response.
         :rtype: str
         """
-        self._messages.append(Message(role="user", content=prompt))
+        self._add_message(Message(role="user", content=prompt))
         logger.info("Requesting raw AI completion with %d messages", len(self._messages))
         
         # Perform chat completion without schema enforcement
@@ -302,7 +358,7 @@ class AIClient(Generic[T]):
         )
 
         message = response.choices[0].message.content  # type: ignore
-        self._messages.append(Message(role="assistant", content=message))
+        self._add_message(Message(role="assistant", content=message))
         logger.debug("Received raw AI response (%d chars)", len(message or ""))
         
         return message
@@ -317,7 +373,7 @@ class AIClient(Generic[T]):
         self._messages.clear()
         self._response_model = None
         self._wrapped_value = False
-    logger.debug("AIClient state reset")
+        logger.debug("AIClient state reset")
 
 
 class AIScriptingClient:
