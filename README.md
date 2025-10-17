@@ -253,6 +253,8 @@ PARAMS = {
 
 `run(context)` is the script’s entry point. It receives a `Context` object providing everything needed at runtime.
 
+> **Performance tip:** When Giorgio inspects a script it still imports the module, even if it only reads `CONFIG`. Keep top-level `CONFIG` and `PARAMS` definitions lightweight and move heavyweight imports or setup into `run(context)` (or helpers it calls) so script discovery stays fast.
+
 ```python
 from pathlib import Path
 from giorgio.execution_engine import Context, GiorgioCancellationError
@@ -260,10 +262,20 @@ from giorgio.execution_engine import Context, GiorgioCancellationError
 
 def run(context: Context):
     try:
+        # Lazily import heavier dependencies
+        from big_data_toolkit import RetentionPlanner
+
         log_dir: Path = context.params["log_dir"]
         days: int = context.params["days"]
 
         print(f"Cleaning logs older than {days} days in {log_dir}…")
+
+        planner = RetentionPlanner(base_dir=log_dir, retention_days=days)
+        stale_files = planner.compute_candidates()
+
+        if not stale_files:
+            print("No files exceeded the retention policy.")
+            return
 
         # Example of dynamic prompting (interactive mode only)
         context.add_params({
@@ -274,12 +286,19 @@ def run(context: Context):
             }
         })
 
-        if context.params["confirm"]:
-            # Compose with another Giorgio script
-            context.call_script("delete_files", {"target_dir": log_dir})
-            print("Cleanup completed.")
-        else:
+        if not context.params["confirm"]:
             print("Operation cancelled.")
+            return
+
+        # Compose with another Giorgio script, passing the computed file list.
+        context.call_script(
+            "delete_files",
+            {
+                "target_dir": log_dir,
+                "files": stale_files,
+            }
+        )
+        print("Cleanup completed.")
 
     except GiorgioCancellationError:
         print("Script execution cancelled by the user.")
@@ -355,12 +374,21 @@ giorgio start
 giorgio run <script_name> --param key=value [--param key=value ...]
     Run non‑interactively (suitable for Cron). Provide all required params.
 
+giorgio upgrade [--force]
+    Update the project's pinned Giorgio version in .giorgio/config.json. Use --force to skip script validation.
+
+giorgio validate
+    Run static validation on all scripts without executing them.
+
 giorgio --help
     Show general help and options.
 ```
 
 > **Tip**
 > Use `--param` repeatedly to pass multiple key/value pairs.
+
+> **Heads-up**
+> If the project configuration references a different Giorgio version than the currently installed CLI, commands such as `run`, `start`, and `new` display a warning suggesting `giorgio upgrade` so you can realign the versions.
 
 ## Scheduling (Cron / Task Scheduler)
 

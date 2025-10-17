@@ -4,8 +4,10 @@ import logging
 from pathlib import Path
 from importlib.metadata import version as _get_version, PackageNotFoundError
 import questionary
-import importlib.util
 from types import MappingProxyType
+from typing import Optional, Tuple
+
+from .validation import validate_project, summarize_validation
 
 
 logger = logging.getLogger("giorgio.project_manager")
@@ -67,6 +69,15 @@ def initialize_project(root: Path, project_name: str = None) -> None:
     
     env_file.touch()
     logger.debug("Created .env file at %s", env_file)
+
+    # Create requirements.txt with default dependency
+    requirements_file = root / "requirements.txt"
+    if requirements_file.exists():
+        logger.error("Cannot initialize project: file '%s' already exists", requirements_file)
+        raise FileExistsError(f"File '{requirements_file}' already exists.")
+
+    requirements_file.write_text("giorgio\n", encoding="utf-8")
+    logger.debug("Created requirements.txt at %s", requirements_file)
 
     # Create .giorgio/ and config.json
     giorgio_dir = root / ".giorgio"
@@ -221,11 +232,11 @@ def upgrade_project(root: Path, force: bool = False) -> None:
     except PackageNotFoundError:
         installed_version = "0.0.0"
 
-    print(f"Current project version: {project_version}")
-    print(f"Installed Giorgio version: {installed_version}")
     logger.info(
         "Project version %s; installed version %s", project_version, installed_version
     )
+    print(f"Current project version: {project_version}")
+    print(f"Installed Giorgio version: {installed_version}")
 
     if project_version == installed_version and not force:
         print("Project is already up-to-date.")
@@ -233,61 +244,45 @@ def upgrade_project(root: Path, force: bool = False) -> None:
         return
 
     def validate_scripts() -> bool:
-        """
-        Validate all scripts in the 'scripts/' directory by importing them
-        and checking that their CONFIG contains 'name' and 'description'.
+        """Validate scripts using static analysis without executing them."""
 
-        :return: True if all scripts pass validation, False otherwise.
-        :rtype: bool
-        """
-        failed = []
-        
         logger.debug("Validating scripts under %s", scripts_dir)
+        results = validate_project(root)
+        summary = summarize_validation(results)
 
-        for script_path in scripts_dir.rglob("script.py"):
-            rel_path = script_path.relative_to(scripts_dir).parent
-            spec_path = script_path
+        if summary.no_scripts:
+            logger.debug("No scripts found for validation in %s", scripts_dir)
+            print("No scripts found in scripts/ directory.")
+            return True
 
-            try:
-                # Temporarily add scripts_dir to sys.path
-                sys.path.insert(0, str(scripts_dir))
-                
-                module_name = ".".join(rel_path.parts + ("script",))
-                spec = importlib.util.spec_from_file_location(module_name, spec_path)
-                module = importlib.util.module_from_spec(spec)
-                spec.loader.exec_module(module)  # type: ignore
+        for rel_path, messages in summary.entries:
+            print(f"- {rel_path}")
 
-                # Check CONFIG
-                cfg = getattr(module, "CONFIG", None)
-                if not isinstance(cfg, dict) or "name" not in cfg or "description" not in cfg:
-                    failed.append(str(rel_path))
-                    logger.warning("Script %s missing required CONFIG keys", rel_path)
-            
-            except Exception as e:
-                failed.append(f"{rel_path} (error: {e})")
-                logger.exception("Error validating script %s", rel_path)
-            
-            finally:
-                # Remove scripts_dir from sys.path if added
-                if sys.path and sys.path[0] == str(scripts_dir):
-                    sys.path.pop(0)
+            for message in messages:
+                prefix = "ERROR" if message.level == "error" else "WARN"
+                print(f"    [{prefix}] {message.message}")
 
-        if failed:
-            print("Validation failed for the following scripts:")
-            
-            for fpath in failed:
-                print(f"  - {fpath}")
-            
+        if summary.has_errors:
+            logger.error("Validation failed due to script errors.")
+            print("Validation failed. Please address the errors above and retry.")
             return False
-        
+
+        if summary.has_warnings:
+            logger.warning("Validation completed with warnings.")
+            print("Validation completed with warnings. Proceed with caution.")
+            return True
+
+        logger.info("Validation completed successfully for all scripts.")
+        print("Validation completed successfully.")
+
         return True
 
     if force:
         confirm = True
     
     else:
-        print("Running validation on all scripts...")
         logger.info("Running validation prior to upgrade for project at %s", root)
+        print("Running validation on all scripts...")
         
         if not validate_scripts():
             logger.error("Validation failed; aborting upgrade for project at %s", root)
@@ -303,12 +298,13 @@ def upgrade_project(root: Path, force: bool = False) -> None:
         with config_file.open("w", encoding="utf-8") as f:
             json.dump(config_data, f, indent=2)
         
-        print(f"Project upgraded to Giorgio version {installed_version}.")
         logger.info("Project at %s upgraded to version %s", root, installed_version)
+        print(f"Project upgraded to Giorgio version {installed_version}.")
     
     else:
-        print("Upgrade canceled.")
         logger.info("Project upgrade canceled for %s", root)
+        print("Upgrade canceled.")
+
 
 def get_project_config(project_root: Path):
     """
@@ -327,3 +323,27 @@ def get_project_config(project_root: Path):
         config = json.load(f)
     logger.debug("Configuration keys loaded: %s", list(config))
     return MappingProxyType(config)
+
+
+def get_version_status(project_root: Path) -> Tuple[Optional[str], Optional[str]]:
+    """
+    Retrieve the configured Giorgio version for a project and the installed version.
+
+    :param project_root: Path to the project root directory.
+    :type project_root: Path
+    :returns: A tuple of (configured_version, installed_version). Either value may be None.
+    :rtype: Tuple[Optional[str], Optional[str]]
+    :raises FileNotFoundError: If config.json does not exist.
+    :raises json.JSONDecodeError: If config.json is invalid JSON.
+    """
+
+    config = get_project_config(project_root)
+    configured_version = config.get("giorgio_version")
+
+    try:
+        installed_version = _get_version("giorgio")
+
+    except PackageNotFoundError:
+        installed_version = None
+
+    return configured_version, installed_version

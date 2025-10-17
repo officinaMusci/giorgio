@@ -45,6 +45,11 @@ def test_initialize_project_creates_structure(temp_project):
     assert env_file.is_file(), ".env file was not created."
     assert env_file.stat().st_size == 0, ".env file should be empty upon init."
 
+    # Verify requirements.txt exists with default dependency
+    requirements_file = temp_project / "requirements.txt"
+    assert requirements_file.is_file(), "requirements.txt was not created."
+    assert requirements_file.read_text(encoding="utf-8") == "giorgio\n"
+
     # Verify '.giorgio/config.json' exists with correct keys
     giorgio_dir = temp_project / ".giorgio"
     assert giorgio_dir.is_dir(), ".giorgio directory was not created."
@@ -229,6 +234,12 @@ def test_initialize_project_raises_if_env_exists(temp_project):
 
 def test_initialize_project_raises_if_giorgio_dir_exists(temp_project):
     (temp_project / ".giorgio").mkdir()
+    with pytest.raises(FileExistsError):
+        initialize_project(temp_project)
+
+
+def test_initialize_project_raises_if_requirements_exists(temp_project):
+    (temp_project / "requirements.txt").write_text("custom\n", encoding="utf-8")
     with pytest.raises(FileExistsError):
         initialize_project(temp_project)
 
