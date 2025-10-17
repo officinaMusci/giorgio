@@ -81,6 +81,14 @@ def test_with_instructions_and_examples(dummy_config):
     assert client._messages[1].role == "user"
     assert client._messages[2].role == "assistant"
 
+
+def test_with_instructions_replaces_message(dummy_config):
+    client = AIClient(dummy_config)
+    client.with_instructions("First")
+    client.with_instructions("Second")
+    assert len(client._messages) == 1
+    assert client._messages[0].content == "Second"
+
 def test_with_doc_adds_system_message(dummy_config):
     client = AIClient(dummy_config)
     client.with_doc("README", "Some content")

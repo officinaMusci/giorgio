@@ -63,7 +63,6 @@ class AIClient(Generic[T]):
     """
     High-level AI client using Instructor + Pydantic for typed prompts.
     """
-
     def __init__(
         self,
         config: AIClientConfig,
@@ -228,13 +227,18 @@ class AIClient(Generic[T]):
     def with_instructions(self, text: str) -> "AIClient[T]":
         """
         Add system instructions guiding the AI’s overall behavior.
+        If multiple calls are made, only the latest instructions are kept.
 
         :param text: Instructional text to prepend as a system message.
         :type text: str
         :returns: Self, for method chaining.
         :rtype: AIClient[T]
         """
-        self._add_message(Message(role="system", content=text))
+        message = Message(role="system", content=text)
+        non_system_msgs = [m for m in self._messages if m.role != "system"]
+        self._messages = [message] + non_system_msgs
+        self._display_message(message)
+
         logger.debug("Added system instructions (%d chars)", len(text))
 
         return self
@@ -303,6 +307,7 @@ class AIClient(Generic[T]):
 
         self._add_message(Message(role="user", content=user_msg))
         self._add_message(Message(role="assistant", content=assistant_msg))
+
         logger.debug("Declared output schema %s (json_only=%s)", model.__name__, json_only)
 
         return self
