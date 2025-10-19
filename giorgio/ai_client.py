@@ -639,6 +639,16 @@ You have to write a script using the Giorgio library.
         logger.debug("Using full README content as anatomy fallback (%d chars)", len(content))
         return content
 
+    def _get_requirements_content(self) -> Optional[str]:
+        path = self.project_root / "requirements.txt"
+        if path.is_file():
+            content = path.read_text(encoding="utf-8").strip()
+            logger.debug("Loaded requirements.txt for AI context (%d chars)", len(content))
+            return content
+
+        logger.debug("requirements.txt not found; skipping context document")
+        return None
+
     def _unwrap_script(self, response: str) -> str:
         """
         Extract the Python script from a possibly wrapped response.
@@ -676,6 +686,11 @@ You have to write a script using the Giorgio library.
             f"""{self.role_description.strip()}\n\n{self.mission_description.strip()}"""
         )
         client.with_doc("Giorgio README", self._get_script_anatomy_content())
+
+        # Add requirements.txt as context document if available
+        requirements_content = self._get_requirements_content()
+        if requirements_content is not None:
+            client.with_doc("Project requirements.txt", requirements_content)
 
         # Add selected modules as context documents
         selected_modules = self._select_modules()

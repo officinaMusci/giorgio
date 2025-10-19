@@ -187,6 +187,7 @@ def test_aiscriptingclient_generate_script(monkeypatch, tmp_path):
     template_path.mkdir()
     (template_path / "script_template.py").write_text("TEMPLATE")
     (tmp_path / "README.md").write_text("README")
+    (tmp_path / "requirements.txt").write_text("requests==2.0")
 
     # Create minimal .giorgio/config.json so get_project_config does not fail
     giorgio_dir = tmp_path / ".giorgio"
@@ -198,9 +199,13 @@ def test_aiscriptingclient_generate_script(monkeypatch, tmp_path):
 
     # Patch AIClient.ask to return code with markdown
     class DummyAIClient:
+        def __init__(self):
+            self.docs = []
         def reset(self): pass
         def with_instructions(self, *a, **k): return self
-        def with_doc(self, *a, **k): return self
+        def with_doc(self, name, content):
+            self.docs.append((name, content))
+            return self
         def with_example(self, *a, **k): return self
         def ask(self, prompt):
             return "```python\nprint('hi')\n```"
@@ -232,10 +237,12 @@ def test_aiscriptingclient_generate_script(monkeypatch, tmp_path):
     monkeypatch.setenv("AI_MODEL", "codestral/22b")
 
     client = AIScriptingClient(tmp_path)
-    client.ai_client = DummyAIClient()
+    dummy_ai_client = DummyAIClient()
+    client.ai_client = dummy_ai_client
     script = client.generate_script("do something")
     assert "print('hi')" in script
     assert "```" not in script
+    assert any(name == "Project requirements.txt" for name, _ in dummy_ai_client.docs)
 
 def test_messages_merges_system_messages(dummy_config):
     client = AIClient(dummy_config)
