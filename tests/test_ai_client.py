@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from typing import Any, Type
 from unittest.mock import MagicMock, patch
 import sys
+import types
 from pydantic import BaseModel
 
 # Patch sys.modules to mock instructor and openai before import
@@ -188,6 +189,7 @@ def test_aiscriptingclient_generate_script(monkeypatch, tmp_path):
     (template_path / "script_template.py").write_text("TEMPLATE")
     (tmp_path / "README.md").write_text("README")
     (tmp_path / "requirements.txt").write_text("requests==2.0")
+    (tmp_path / ".env").write_text("AI_API_KEY=test-key\nAI_BASE_URL=http://api\nAI_MODEL=codestral/22b\nEXTRA_VAR=value\n# COMMENTED=out\nEMPTY=\nINVALIDLINE\n")
 
     # Create minimal .giorgio/config.json so get_project_config does not fail
     giorgio_dir = tmp_path / ".giorgio"
@@ -209,6 +211,10 @@ def test_aiscriptingclient_generate_script(monkeypatch, tmp_path):
         def with_example(self, *a, **k): return self
         def ask(self, prompt):
             return "```python\nprint('hi')\n```"
+
+    dummy_dotenv = types.ModuleType("dotenv")
+    dummy_dotenv.load_dotenv = lambda *a, **k: None
+    monkeypatch.setitem(sys.modules, "dotenv", dummy_dotenv)
 
     # Patch Path.read_text to use our files
     orig_read_text = Path.read_text
@@ -243,6 +249,11 @@ def test_aiscriptingclient_generate_script(monkeypatch, tmp_path):
     assert "print('hi')" in script
     assert "```" not in script
     assert any(name == "Project requirements.txt" for name, _ in dummy_ai_client.docs)
+    env_doc = [content for name, content in dummy_ai_client.docs if name == "Project .env variables"]
+    assert env_doc and "AI_API_KEY" in env_doc[0] and "AI_BASE_URL" in env_doc[0]
+    assert "EXTRA_VAR" in env_doc[0]
+    assert "EMPTY" in env_doc[0]
+    assert "INVALIDLINE" not in env_doc[0]
 
 def test_messages_merges_system_messages(dummy_config):
     client = AIClient(dummy_config)

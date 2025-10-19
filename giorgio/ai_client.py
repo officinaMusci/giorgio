@@ -649,6 +649,30 @@ You have to write a script using the Giorgio library.
         logger.debug("requirements.txt not found; skipping context document")
         return None
 
+    def _get_env_variable_names(self) -> Optional[str]:
+        env_path = self.project_root / ".env"
+        if not env_path.is_file():
+            logger.debug(".env file not found; skipping environment variables context")
+            return None
+
+        names: List[str] = []
+        for raw_line in env_path.read_text(encoding="utf-8").splitlines():
+            line = raw_line.strip()
+            if not line or line.startswith("#"):
+                continue
+            if "=" not in line:
+                continue
+            key = line.split("=", 1)[0].strip()
+            if key:
+                names.append(key)
+
+        if not names:
+            logger.debug(".env file contains no variable definitions; skipping context document")
+            return None
+
+        logger.debug("Loaded %d environment variable names for AI context", len(names))
+        return "\n".join(names)
+
     def _unwrap_script(self, response: str) -> str:
         """
         Extract the Python script from a possibly wrapped response.
@@ -691,6 +715,10 @@ You have to write a script using the Giorgio library.
         requirements_content = self._get_requirements_content()
         if requirements_content is not None:
             client.with_doc("Project requirements.txt", requirements_content)
+
+        env_variable_names = self._get_env_variable_names()
+        if env_variable_names is not None:
+            client.with_doc("Project .env variables", env_variable_names)
 
         # Add selected modules as context documents
         selected_modules = self._select_modules()
