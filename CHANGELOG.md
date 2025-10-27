@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## 1.9.0 (2025-10-27)
+
+### Feat
+
+- enhance script generation context by including requirements.txt and .env variable names
+- add support for loading environment variable names from .env file in AIScriptingClient
+- add requirements.txt context support in AIScriptingClient
+- update AIClient to replace system instructions and add corresponding test
+- enhance AIClient with message display options and markdown rendering
+- add comprehensive AI briefing documentation for project structure and workflows
+
 ## 1.8.0 (2025-10-17)
 
 ### Feat
