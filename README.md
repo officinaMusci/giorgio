@@ -127,6 +127,10 @@ giorgio new greet_user --ai-prompt "Create a script that prints a text provided 
 
 When using `--ai-prompt`, Giorgio may also ask to include project modules or existing scripts as **context** to improve generation. The result follows Giorgio’s conventions and includes inline documentation.
 
+During script generation Giorgio automatically shares additional context with the AI:
+- `requirements.txt` contents if the file exists, so dependencies stay aligned.
+- The list of variable names defined in the project `.env`, helping the AI reference available configuration knobs without exposing secrets.
+
 **Environment** (typical):
 
 You can set environment variables directly in your shell, or place them in your project’s `.env` file (recommended for local development):

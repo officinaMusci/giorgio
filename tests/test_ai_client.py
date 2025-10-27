@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from typing import Any, Type
 from unittest.mock import MagicMock, patch
 import sys
+import types
 from pydantic import BaseModel
 
 # Patch sys.modules to mock instructor and openai before import
@@ -81,6 +82,14 @@ def test_with_instructions_and_examples(dummy_config):
     assert client._messages[1].role == "user"
     assert client._messages[2].role == "assistant"
 
+
+def test_with_instructions_replaces_message(dummy_config):
+    client = AIClient(dummy_config)
+    client.with_instructions("First")
+    client.with_instructions("Second")
+    assert len(client._messages) == 1
+    assert client._messages[0].content == "Second"
+
 def test_with_doc_adds_system_message(dummy_config):
     client = AIClient(dummy_config)
     client.with_doc("README", "Some content")
@@ -88,6 +97,35 @@ def test_with_doc_adds_system_message(dummy_config):
     assert client._messages[-1].role == "assistant"
     # Match the actual content returned by with_doc
     assert "Document 'README' received and understood." == client._messages[-1].content
+
+
+def test_set_message_display_outputs_markdown(dummy_config, monkeypatch):
+    console_mock = MagicMock()
+    console_mock.rule = MagicMock()
+    console_mock.print = MagicMock()
+    monkeypatch.setattr("giorgio.ai_client.Console", lambda: console_mock)
+    monkeypatch.setattr("giorgio.ai_client.Markdown", lambda content: f"MD:{content}")
+
+    client = AIClient(dummy_config)
+    client.set_message_display(True)
+    client._display_message(Message(role="user", content="Hello"))
+
+    console_mock.rule.assert_called_once()
+    console_mock.print.assert_called_once_with("MD:Hello")
+
+
+def test_show_messages_on_initialization(dummy_config, monkeypatch):
+    console_mock = MagicMock()
+    console_mock.rule = MagicMock()
+    console_mock.print = MagicMock()
+    monkeypatch.setattr("giorgio.ai_client.Console", lambda: console_mock)
+    monkeypatch.setattr("giorgio.ai_client.Markdown", lambda content: f"MD:{content}")
+
+    client = AIClient(dummy_config, show_messages=True)
+    client.with_instructions("Hello **world**")
+
+    console_mock.rule.assert_called_once()
+    console_mock.print.assert_called_once_with("MD:Hello **world**")
 
 def test_with_schema_sets_response_model(dummy_config):
     client = AIClient(dummy_config)
@@ -150,6 +188,8 @@ def test_aiscriptingclient_generate_script(monkeypatch, tmp_path):
     template_path.mkdir()
     (template_path / "script_template.py").write_text("TEMPLATE")
     (tmp_path / "README.md").write_text("README")
+    (tmp_path / "requirements.txt").write_text("requests==2.0")
+    (tmp_path / ".env").write_text("AI_API_KEY=test-key\nAI_BASE_URL=http://api\nAI_MODEL=codestral/22b\nEXTRA_VAR=value\n# COMMENTED=out\nEMPTY=\nINVALIDLINE\n")
 
     # Create minimal .giorgio/config.json so get_project_config does not fail
     giorgio_dir = tmp_path / ".giorgio"
@@ -161,12 +201,20 @@ def test_aiscriptingclient_generate_script(monkeypatch, tmp_path):
 
     # Patch AIClient.ask to return code with markdown
     class DummyAIClient:
+        def __init__(self):
+            self.docs = []
         def reset(self): pass
         def with_instructions(self, *a, **k): return self
-        def with_doc(self, *a, **k): return self
+        def with_doc(self, name, content):
+            self.docs.append((name, content))
+            return self
         def with_example(self, *a, **k): return self
         def ask(self, prompt):
             return "```python\nprint('hi')\n```"
+
+    dummy_dotenv = types.ModuleType("dotenv")
+    dummy_dotenv.load_dotenv = lambda *a, **k: None
+    monkeypatch.setitem(sys.modules, "dotenv", dummy_dotenv)
 
     # Patch Path.read_text to use our files
     orig_read_text = Path.read_text
@@ -195,10 +243,17 @@ def test_aiscriptingclient_generate_script(monkeypatch, tmp_path):
     monkeypatch.setenv("AI_MODEL", "codestral/22b")
 
     client = AIScriptingClient(tmp_path)
-    client.ai_client = DummyAIClient()
+    dummy_ai_client = DummyAIClient()
+    client.ai_client = dummy_ai_client
     script = client.generate_script("do something")
     assert "print('hi')" in script
     assert "```" not in script
+    assert any(name == "Project requirements.txt" for name, _ in dummy_ai_client.docs)
+    env_doc = [content for name, content in dummy_ai_client.docs if name == "Project .env variables"]
+    assert env_doc and "AI_API_KEY" in env_doc[0] and "AI_BASE_URL" in env_doc[0]
+    assert "EXTRA_VAR" in env_doc[0]
+    assert "EMPTY" in env_doc[0]
+    assert "INVALIDLINE" not in env_doc[0]
 
 def test_messages_merges_system_messages(dummy_config):
     client = AIClient(dummy_config)
